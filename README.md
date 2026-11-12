@@ -93,6 +93,18 @@ cd app
 npm run build
 ```
 
+## macOS 桌面版
+
+Electron 外壳 + 打包成可执行文件的后端（PyInstaller），双击即可运行，不依赖系统 Python。
+
+```bash
+desktop/build.sh
+```
+
+构建产物为 `desktop/out/mac-arm64/SOCCERBOARD.app`，复制到 `/Applications` 后可从启动台打开。App 启动时会自动拉起内置后端（127.0.0.1:8123）并加载界面，退出时一并关闭。
+
+桌面版数据存放在 `~/Library/Application Support/soccerboard-desktop/data/`：首次启动会把构建时的种子数据复制过去，之后所有修改都保存在这里。
+
 ## 项目结构
 
 ```
@@ -104,6 +116,10 @@ SOCCERBOARD/
 │       ├── render/         # Canvas 绘制（站位图、介绍页、视频合成）
 │       ├── stores/         # 全局状态
 │       └── views/          # 比赛列表、球队管理、新建向导
+├── desktop/                # macOS 桌面版（Electron + PyInstaller）
+│   ├── main.js             # Electron 主进程：拉起后端、打开窗口
+│   ├── backend_entry.py    # 后端可执行文件入口
+│   └── build.sh            # 一键构建 .app
 ├── server/                 # 后端（FastAPI + SQLite）
 │   ├── main.py             # API 路由
 │   └── db.py               # 数据库结构与读写

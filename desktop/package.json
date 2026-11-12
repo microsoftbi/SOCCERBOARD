@@ -1,0 +1,47 @@
+{
+  "name": "soccerboard-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SOCCERBOARD 足球转播画面工具（macOS 桌面版）",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --mac --dir"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.soccerboard.app",
+    "productName": "SOCCERBOARD",
+    "directories": {
+      "output": "out"
+    },
+    "files": [
+      "main.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../app/dist",
+        "to": "web"
+      },
+      {
+        "from": "build/soccerboard-server",
+        "to": "backend/soccerboard-server"
+      },
+      {
+        "from": "seed",
+        "to": "seed"
+      }
+    ],
+    "mac": {
+      "target": [
+        "dir"
+      ],
+      "category": "public.app-category.sports",
+      "identity": null
+    }
+  }
+}

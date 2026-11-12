@@ -7,6 +7,12 @@ node_modules/
 app/node_modules/
 app/dist/
 
+# 桌面版构建产物（含用户数据副本，不入库）
+desktop/node_modules/
+desktop/build/
+desktop/out/
+desktop/seed/
+
 # 服务端运行数据与虚拟环境
 server/data/
 server/.venv/

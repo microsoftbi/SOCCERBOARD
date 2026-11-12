@@ -97,11 +97,14 @@ export function paintCard(t: LineupTeam, opts: CardOptions, reveal?: Reveal): HT
   x.fillStyle = bg;
   x.fillRect(0, 0, W, H);
 
-  /* 球场几何 */
-  const padX = horiz ? 250 : 110;
+  /* 球场几何：横版右侧留出替补栏 */
+  const benchW = horiz ? 300 : 0;
+  const gap = horiz ? 44 : 0;
+  const padL = horiz ? 120 : 110;
+  const padR = horiz ? 120 + benchW + gap : 110;
   const top = horiz ? 24 : 250;
   const bot = horiz ? 216 : 370;
-  const pw = W - padX * 2;
+  const pw = W - padL - padR;
   const ph = H - top - bot;
   const min = Math.min(pw, ph);
 
@@ -110,30 +113,30 @@ export function paintCard(t: LineupTeam, opts: CardOptions, reveal?: Reveal): HT
   gr.addColorStop(0, '#1d7440');
   gr.addColorStop(1, '#155a31');
   x.fillStyle = gr;
-  x.fillRect(padX, top, pw, ph);
+  x.fillRect(padL, top, pw, ph);
   x.fillStyle = 'rgba(255,255,255,.045)';
   const bands = 12;
   const bh = ph / bands;
-  for (let i = 0; i < bands; i += 2) x.fillRect(padX, top + i * bh, pw, bh);
+  for (let i = 0; i < bands; i += 2) x.fillRect(padL, top + i * bh, pw, bh);
 
   /* 标线 */
   const lw = Math.max(3, min * 0.008);
   x.strokeStyle = 'rgba(255,255,255,.55)';
   x.lineWidth = lw;
-  x.strokeRect(padX, top, pw, ph);
+  x.strokeRect(padL, top, pw, ph);
   x.beginPath();
-  x.moveTo(padX, top + ph / 2);
-  x.lineTo(padX + pw, top + ph / 2);
+  x.moveTo(padL, top + ph / 2);
+  x.lineTo(padL + pw, top + ph / 2);
   x.stroke();
   x.beginPath();
-  x.arc(padX + pw / 2, top + ph / 2, min * 0.085, 0, Math.PI * 2);
+  x.arc(padL + pw / 2, top + ph / 2, min * 0.085, 0, Math.PI * 2);
   x.stroke();
   x.fillStyle = 'rgba(255,255,255,.6)';
   x.beginPath();
-  x.arc(padX + pw / 2, top + ph / 2, lw * 1.7, 0, Math.PI * 2);
+  x.arc(padL + pw / 2, top + ph / 2, lw * 1.7, 0, Math.PI * 2);
   x.fill();
 
-  const cx = padX + pw / 2;
+  const cx = padL + pw / 2;
   const boxW = pw * 0.58;
   const boxD = ph * 0.155;
   const gW = pw * 0.3;
@@ -173,7 +176,7 @@ export function paintCard(t: LineupTeam, opts: CardOptions, reveal?: Reveal): HT
   lg.addColorStop(1, horiz ? 'rgba(4,10,7,.82)' : 'rgba(4,10,7,.97)');
   x.fillStyle = lg;
   x.fillRect(0, bandTop, W, H - bandTop);
-  const inPad = horiz ? padX : 110;
+  const inPad = padL;
   x.fillStyle = t.color;
   rr(x, inPad, H - bandH * 0.74, 14, bandH * 0.46, 7);
   x.fill();
@@ -192,14 +195,14 @@ export function paintCard(t: LineupTeam, opts: CardOptions, reveal?: Reveal): HT
   x.textAlign = 'right';
   x.fillStyle = '#f2c94c';
   x.font = `800 ${Math.round(bandH * 0.155)}px ${FONT_MONO}`;
-  x.fillText('PRE-MATCH LINEUP', W - inPad, H - bandH * 0.3);
+  x.fillText('PRE-MATCH LINEUP', W - padR, H - bandH * 0.3);
   x.restore();
 
   /* 球员 */
   const r = horiz ? 46 : 54;
   slots.forEach((s, i) => {
     const p = s.pid != null ? playerById(t, s.pid) : undefined;
-    const px = padX + (s.x / 100) * pw;
+    const px = padL + (s.x / 100) * pw;
     const py = top + (s.y / 100) * ph;
     const rl = rv.slot[i] || { b: 1, n: 1, p: 1 };
 
@@ -302,6 +305,82 @@ export function paintCard(t: LineupTeam, opts: CardOptions, reveal?: Reveal): HT
       x.restore();
     }
   });
+
+  /* 替补席：横版右侧栏 */
+  if (horiz) {
+    const bx = W - padR + gap;
+    const rows = (t.bench || [])
+      .map((id) => playerById(t, id))
+      .filter((p): p is NonNullable<typeof p> => Boolean(p));
+    x.save();
+    x.globalAlpha = clamp01(rv.info);
+    x.fillStyle = 'rgba(255,255,255,.035)';
+    rr(x, bx, top, benchW, ph, 20);
+    x.fill();
+    x.strokeStyle = 'rgba(255,255,255,.09)';
+    x.lineWidth = 2;
+    x.stroke();
+
+    x.textBaseline = 'alphabetic';
+    x.textAlign = 'left';
+    x.fillStyle = '#e8efe9';
+    x.font = `800 27px ${FONT_SYS}`;
+    x.fillText('替补席', bx + 24, top + 50);
+    x.textAlign = 'right';
+    x.fillStyle = 'rgba(157,176,165,.9)';
+    x.font = `700 15px ${FONT_MONO}`;
+    x.fillText(`BENCH · ${rows.length}`, bx + benchW - 24, top + 48);
+
+    const listTop = top + 78;
+    const avail = ph - 78 - 26;
+    if (rows.length === 0) {
+      x.textAlign = 'center';
+      x.textBaseline = 'middle';
+      x.fillStyle = 'rgba(157,176,165,.65)';
+      x.font = `600 20px ${FONT_SYS}`;
+      x.fillText('暂无替补', bx + benchW / 2, top + ph / 2);
+    } else {
+      const rowH = Math.min(66, avail / rows.length);
+      const cr = Math.min(20, rowH * 0.32);
+      rows.forEach((p, i) => {
+        const cy = listTop + i * rowH + rowH / 2;
+        if (i > 0) {
+          x.strokeStyle = 'rgba(255,255,255,.07)';
+          x.lineWidth = 1;
+          x.beginPath();
+          x.moveTo(bx + 22, cy - rowH / 2);
+          x.lineTo(bx + benchW - 22, cy - rowH / 2);
+          x.stroke();
+        }
+        x.beginPath();
+        x.arc(bx + 40, cy, cr, 0, Math.PI * 2);
+        x.fillStyle = t.color;
+        x.fill();
+        x.strokeStyle = 'rgba(255,255,255,.55)';
+        x.lineWidth = 1.6;
+        x.stroke();
+        x.fillStyle = '#fff';
+        x.font = `800 ${Math.round(cr * 0.95)}px ${FONT_MONO}`;
+        x.textAlign = 'center';
+        x.textBaseline = 'middle';
+        x.fillText(p.num || '–', bx + 40, cy + 1);
+
+        x.textAlign = 'left';
+        x.fillStyle = '#e8efe9';
+        x.font = `600 ${Math.round(Math.min(23, rowH * 0.38))}px ${FONT_SYS}`;
+        const label = p.name.length > 5 ? `${p.name.slice(0, 5)}…` : p.name;
+        x.fillText(label || '未命名', bx + 72, cy + 1);
+
+        if (p.pos) {
+          x.textAlign = 'right';
+          x.fillStyle = 'rgba(157,176,165,.85)';
+          x.font = `600 ${Math.round(Math.min(15, rowH * 0.25))}px ${FONT_MONO}`;
+          x.fillText(p.pos, bx + benchW - 24, cy + 1);
+        }
+      });
+    }
+    x.restore();
+  }
 
   /* 整体入场：自黑场淡入 */
   if (rv.overall < 1) {

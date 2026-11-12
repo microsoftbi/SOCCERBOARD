@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 from typing import Any, Iterator
@@ -185,7 +186,9 @@ def delete_video(team_id: int, player_id: int) -> dict[str, Any]:
     return {"ok": True}
 
 
-DIST_DIR = Path(__file__).resolve().parent.parent / "app" / "dist"
+DIST_DIR = Path(
+    os.environ.get("SOCCERBOARD_WEB_DIR", str(Path(__file__).resolve().parent.parent / "app" / "dist"))
+)
 
 db.init_db()
 
