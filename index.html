@@ -1,0 +1,2188 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOCCERBOARD · 足球转播球队介绍系统</title>
+<style>
+:root{
+  --bg:#0a0f0d; --panel:#111815; --panel-2:#161f1b; --line:#24312b; --line-soft:#1b2621;
+  --text:#e8efe9; --text-dim:#9db0a5; --text-mute:#6d8176;
+  --accent:#7ef0a8; --accent-deep:#1f7a4c; --amber:#f2c94c; --red:#ff6b6b;
+  --pitch:#1d7440; --pitch-dark:#155a31;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.01em}
+p{margin:0 0 8px}
+button{font-family:inherit}
+
+/* ---------- 顶栏 ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;display:flex;align-items:center;gap:14px;flex-wrap:wrap;
+  padding:10px 20px;background:rgba(10,15,13,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{
+  width:30px;height:30px;border-radius:8px;flex:0 0 auto;
+  background:linear-gradient(160deg,var(--accent),var(--accent-deep));
+  display:grid;place-items:center;color:#07120c;font-weight:800;font-size:12px;letter-spacing:-.5px;
+}
+.brand-title{font-size:14px;font-weight:700;white-space:nowrap}
+.brand-sub{font-size:10.5px;color:var(--text-mute);white-space:nowrap}
+.teamseg{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:3px;gap:3px}
+.teamseg button{
+  appearance:none;border:0;background:transparent;color:var(--text-dim);font-size:12.5px;
+  padding:5px 12px;border-radius:6px;cursor:pointer;display:flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.teamseg button:hover{color:var(--text)}
+.teamseg button[aria-pressed="true"]{background:var(--panel-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+.teamseg .dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:0 0 auto}
+.teamseg b{font-weight:600;max-width:9em;overflow:hidden;text-overflow:ellipsis}
+.spacer{flex:1}
+.savestat{font-size:11px;color:var(--text-mute);font-family:var(--mono);white-space:nowrap}
+.savestat::before{content:"● ";color:var(--accent);font-size:9px}
+
+/* ---------- 步骤导航 ---------- */
+.steps{
+  position:sticky;top:53px;z-index:49;display:flex;gap:4px;flex-wrap:wrap;
+  padding:8px 20px;background:rgba(10,15,13,.93);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft);
+}
+.step{
+  appearance:none;font:inherit;font-size:12.5px;color:var(--text-mute);background:transparent;
+  border:1px solid transparent;border-radius:7px;padding:5px 12px;cursor:pointer;
+  display:flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.step b{
+  font-family:var(--mono);font-size:10.5px;font-weight:700;width:17px;height:17px;border-radius:5px;
+  display:grid;place-items:center;background:var(--panel-2);color:var(--text-mute);border:1px solid var(--line);
+}
+.step:hover{color:var(--text-dim)}
+.step[aria-current="true"]{background:rgba(126,240,168,.09);border-color:var(--accent-deep);color:var(--accent)}
+.step[aria-current="true"] b{background:var(--accent);color:#07120c;border-color:var(--accent)}
+.step.done{color:var(--text-dim)}
+.step.done b{color:var(--accent)}
+
+/* ---------- 主区 ---------- */
+main{max-width:1180px;margin:0 auto;padding:20px 20px 80px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:18px}
+.hd{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.hd h2{font-size:16px}
+.hd p{font-size:12px;color:var(--text-mute);margin:3px 0 0;max-width:640px}
+.hd .chipstat{
+  font-family:var(--mono);font-size:11.5px;color:var(--text-dim);white-space:nowrap;
+  border:1px solid var(--line);border-radius:99px;padding:3px 11px;background:var(--panel-2);
+}
+.hd .chipstat.ok{color:var(--accent);border-color:var(--accent-deep)}
+
+.lbl{display:block;font-size:11.5px;color:var(--text-mute);margin-bottom:6px;letter-spacing:.02em}
+.field{margin-bottom:14px;min-width:0}
+input[type=text],select{
+  font:inherit;font-size:13px;color:var(--text);background:#0c1210;
+  border:1px solid var(--line);border-radius:8px;padding:8px 10px;width:100%;
+}
+input:focus,select:focus{outline:none;border-color:var(--accent-deep);box-shadow:0 0 0 3px rgba(126,240,168,.12)}
+select{
+  appearance:none;cursor:pointer;padding-right:28px;
+  background-image:linear-gradient(45deg,transparent 50%,var(--text-mute) 50%),linear-gradient(135deg,var(--text-mute) 50%,transparent 50%);
+  background-position:calc(100% - 15px) 50%,calc(100% - 10px) 50%;background-size:5px 5px;background-repeat:no-repeat;
+}
+input[type=color]{
+  appearance:none;-webkit-appearance:none;border:1px solid var(--line);border-radius:8px;
+  width:52px;height:36px;background:#0c1210;cursor:pointer;padding:3px;
+}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:none;border-radius:5px}
+.row2{display:flex;gap:14px;flex-wrap:wrap}
+.row2>*{min-width:0}
+.colorline{display:flex;align-items:center;gap:10px}
+.colorhex{font-family:var(--mono);font-size:12px;color:var(--text-dim)}
+.note{font-size:11.5px;color:var(--text-mute);border-left:2px solid var(--line);padding-left:9px;margin-top:8px;line-height:1.55}
+
+.chipset{display:flex;gap:7px;flex-wrap:wrap}
+.pill{
+  appearance:none;font:inherit;font-size:13px;cursor:pointer;border-radius:8px;
+  padding:7px 16px;border:1px solid var(--line);background:#0c1210;color:var(--text-dim);
+}
+.pill:hover{border-color:#33463c;color:var(--text)}
+.pill[aria-pressed="true"]{background:rgba(126,240,168,.12);border-color:var(--accent);color:var(--accent);font-weight:650}
+.pill small{display:block;font-size:9.5px;color:var(--text-mute);font-weight:400;line-height:1.3}
+
+.btn{
+  appearance:none;font:inherit;font-size:13px;font-weight:550;cursor:pointer;
+  border-radius:8px;padding:8px 15px;border:1px solid var(--line);color:var(--text);background:var(--panel-2);
+  display:inline-flex;align-items:center;gap:7px;transition:background .15s,border-color .15s,transform .1s;
+}
+.btn:hover{background:#1b2621;border-color:#33463c}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#07120c}
+.btn.primary:hover{background:#93f5b6}
+.btn.ghost{background:transparent}
+.btn[disabled]{opacity:.38;cursor:not-allowed}
+.btn[disabled]:hover{background:var(--panel-2);border-color:var(--line)}
+.btn.sm{font-size:12px;padding:5px 12px;border-radius:7px}
+.btnrow{display:flex;gap:9px;flex-wrap:wrap;align-items:center;margin-top:16px}
+.btnrow .meta{font-size:12px;color:var(--text-mute)}
+
+.errbox,.warnbox,.okbox{display:none;font-size:12.5px;border-radius:8px;padding:8px 12px;margin-bottom:12px;line-height:1.5}
+.errbox.on,.warnbox.on,.okbox.on{display:block}
+.errbox{background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.32);color:#ffb3b3}
+.warnbox{background:rgba(242,201,76,.07);border:1px solid rgba(242,201,76,.3);color:#f0d98a}
+.okbox{background:rgba(126,240,168,.06);border:1px solid rgba(126,240,168,.25);color:#a9e9c2}
+
+/* ---------- 名单 ---------- */
+.roster{display:flex;flex-direction:column;gap:7px}
+.prow{
+  display:grid;grid-template-columns:56px 46px minmax(0,1fr) 172px 44px 34px;
+  gap:9px;align-items:center;padding:8px 10px;border-radius:9px;
+  background:#0d1411;border:1px solid var(--line-soft);
+}
+.prow:focus-within{border-color:var(--accent-deep);background:#101815}
+.prow.bad{border-color:rgba(255,107,107,.5);background:rgba(255,107,107,.05)}
+.prow .in-num{font-family:var(--mono);text-align:center;padding:7px 4px}
+.prow select{padding:7px 26px 7px 9px;font-size:12.5px}
+.ph{
+  width:46px;height:46px;border-radius:10px;overflow:hidden;position:relative;
+  background:linear-gradient(160deg,#22322a,#16211c);border:1px solid var(--line);
+  display:grid;place-items:center;cursor:pointer;color:var(--text-mute);font-size:15px;
+}
+.ph:hover{border-color:#3d5245}
+.ph img{width:100%;height:100%;object-fit:cover;display:block;position:absolute;inset:0}
+.ph input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.cap{
+  width:30px;height:30px;border-radius:50%;border:1.5px dashed #33463c;background:transparent;
+  color:var(--text-mute);cursor:pointer;font-size:12px;font-family:var(--mono);font-weight:700;
+}
+.cap:hover{border-color:var(--amber);color:var(--amber)}
+.cap.on{background:var(--amber);border:1.5px solid var(--amber);color:#231c00}
+.del{
+  width:30px;height:30px;border-radius:7px;border:1px solid transparent;background:transparent;
+  color:#5d6f65;cursor:pointer;font-size:15px;line-height:1;
+}
+.del:hover{color:var(--red);border-color:#4a2626}
+
+/* ---------- 站位编排 ---------- */
+.boardwrap{display:flex;gap:16px;align-items:stretch;flex-wrap:wrap}
+.pitchcol{flex:1 1 560px;min-width:0}
+.benchcol{flex:0 0 240px;display:flex;flex-direction:column;gap:8px}
+.toolbar{display:flex;gap:9px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.toolbar select{width:auto;min-width:130px;padding:6px 28px 6px 10px;font-size:12.5px}
+.pitch{
+  position:relative;width:100%;aspect-ratio:16/10;border-radius:11px;overflow:hidden;
+  border:1px solid #1e5b36;user-select:none;
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 8.33%,transparent 8.33% 16.66%),
+    linear-gradient(155deg,var(--pitch),var(--pitch-dark));
+}
+.mk{position:absolute;pointer-events:none;border:2px solid rgba(255,255,255,.38)}
+.mk-field{inset:3.2%;border-radius:3px}
+.mk-mid{left:3.2%;right:3.2%;top:50%;height:0;border-top:2px solid rgba(255,255,255,.38)}
+.mk-circle{left:50%;top:50%;width:24%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%}
+.mk-spot{left:50%;top:50%;width:1.1%;aspect-ratio:1;transform:translate(-50%,-50%);border-radius:50%;background:rgba(255,255,255,.5);border:0}
+.mk-box{left:50%;transform:translateX(-50%);width:56%;height:12.5%}
+.mk-box.top{top:3.2%;border-top:0}
+.mk-box.bot{bottom:3.2%;border-bottom:0}
+.mk-gbox{left:50%;transform:translateX(-50%);width:28%;height:5%}
+.mk-gbox.top{top:3.2%;border-top:0}
+.mk-gbox.bot{bottom:3.2%;border-bottom:0}
+
+.slot{position:absolute;transform:translate(-50%,-58%);display:flex;flex-direction:column;align-items:center;cursor:pointer;z-index:2}
+.slot .bubble{
+  position:relative;width:46px;height:46px;border-radius:50%;overflow:visible;
+  background:#0d1411;border:2px solid rgba(255,255,255,.85);
+  display:grid;place-items:center;font-family:var(--mono);font-weight:700;font-size:15px;color:#fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.4);transition:box-shadow .12s;
+}
+.slot .bubble img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}
+.slot.empty .bubble{background:transparent;border:2px dashed rgba(255,255,255,.6);color:rgba(255,255,255,.75);font-size:13px;font-weight:400}
+.slot:hover .bubble{box-shadow:0 0 0 4px rgba(126,240,168,.25),0 3px 10px rgba(0,0,0,.4)}
+.slot.sel .bubble{box-shadow:0 0 0 4px rgba(126,240,168,.6),0 3px 12px rgba(0,0,0,.5)}
+.slot .tag{
+  margin-top:4px;font-size:11px;font-weight:600;color:#fff;white-space:nowrap;
+  background:rgba(7,18,12,.82);border-radius:5px;padding:1px 7px;max-width:96px;overflow:hidden;text-overflow:ellipsis;
+}
+.slot .postag{margin-top:2px;font-family:var(--mono);font-size:9.5px;color:rgba(233,243,237,.85);letter-spacing:.04em}
+.capdot{
+  position:absolute;top:-5px;right:-7px;width:17px;height:17px;border-radius:50%;
+  background:var(--amber);color:#231c00;font-size:10px;font-weight:800;
+  display:grid;place-items:center;border:1.5px solid #231c00;
+}
+.bench{
+  background:#0d1411;border:1px solid var(--line-soft);border-radius:10px;padding:10px;
+  display:flex;flex-direction:column;gap:6px;max-height:520px;overflow:auto;flex:1;
+}
+.bench::-webkit-scrollbar{width:7px}
+.bench::-webkit-scrollbar-thumb{background:#22322a;border-radius:9px}
+.bench-hd{font-size:11.5px;color:var(--text-mute);display:flex;justify-content:space-between;align-items:center}
+.bench-hd b{font-family:var(--mono);color:var(--text-dim);font-weight:600}
+.bp{
+  appearance:none;font:inherit;font-size:12px;cursor:pointer;text-align:left;
+  display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:7px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--text);
+}
+.bp:hover{border-color:var(--accent-deep)}
+.bp b{font-family:var(--mono);font-size:11.5px;color:var(--accent);min-width:18px;font-weight:700}
+.bp span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bp i{font-style:normal;font-family:var(--mono);font-size:10px;color:var(--text-mute)}
+.bp.used{opacity:.35}
+.bp.used:hover{border-color:var(--line)}
+.benchnote{font-size:11px;color:var(--text-mute);margin:0}
+
+/* ---------- 播出预览 ---------- */
+.castctl{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin-bottom:14px}
+.seg{display:flex;background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:2px}
+.seg button{
+  appearance:none;border:0;background:transparent;color:var(--text-dim);font:inherit;font-size:12px;
+  padding:5px 13px;border-radius:6px;cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:#0c1210;color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent-deep)}
+.toggle{
+  appearance:none;font:inherit;font-size:12px;cursor:pointer;border-radius:99px;
+  padding:5px 13px;border:1px solid var(--line);background:#0c1210;color:var(--text-dim);
+}
+.toggle[aria-pressed="true"]{background:rgba(126,240,168,.12);border-color:var(--accent);color:var(--accent);font-weight:600}
+.castwrap{background:#050807;border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;place-items:center}
+.cast-canvas{width:100%;max-width:920px;height:auto;display:block;border-radius:6px}
+.cast-canvas.vertical{max-width:400px}
+.statusline{font-size:12.5px;color:var(--text-dim);margin-top:12px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.statusline .t{font-family:var(--mono);font-size:10.5px;color:var(--text-mute)}
+.expinfo{font-size:11.5px;color:var(--text-mute);font-family:var(--mono)}
+
+/* ---------- 队员信息展示（转播风格舞台） ---------- */
+.showwrap{background:#050807;border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;place-items:center}
+.showbox{position:relative;width:100%;max-width:1120px;aspect-ratio:16/9;overflow:hidden;border-radius:8px;background:#08120c}
+.stage{
+  position:absolute;left:0;top:0;width:1200px;height:675px;transform-origin:0 0;
+  --show-speed:9; /* 展示播放节奏倍数：9 = 原速的 1/9（每行 2.52s） */
+  font-family:-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+}
+.st-bg{position:absolute;inset:0;background:
+  radial-gradient(120% 90% at 16% -6%,#cdd6c9 0%,rgba(205,214,201,0) 44%),
+  linear-gradient(168deg,#9dae9a 0%,#68795f 24%,#2f4029 56%,#101a0f 100%);
+}
+.st-bg::after{content:"";position:absolute;inset:0;opacity:.45;mix-blend-mode:overlay;
+  background:repeating-linear-gradient(102deg,rgba(255,255,255,.06) 0 2px,rgba(0,0,0,0) 2px 26px);
+}
+.st-drape{position:absolute;left:118px;top:100px;width:964px;height:558px;border-radius:4px 4px 12px 12px;
+  background:
+    repeating-linear-gradient(90deg,rgba(0,0,0,.28) 0 8px,rgba(0,0,0,0) 8px 30px,rgba(255,255,255,.06) 30px 42px,rgba(0,0,0,.16) 42px 60px),
+    linear-gradient(180deg,#20601a 0%,#3f7d13 20%,#6b9f16 46%,#86ba19 62%,#3d7314 100%);
+  box-shadow:inset 0 0 70px rgba(0,0,0,.42),0 18px 46px rgba(0,0,0,.45);
+}
+.st-drape::before{content:"";position:absolute;left:0;right:0;top:0;height:10px;opacity:.5;
+  background:linear-gradient(180deg,rgba(255,255,255,.35),rgba(255,255,255,0));
+}
+.st-bar{position:absolute;left:30px;right:30px;top:56px;height:38px;display:flex;align-items:center;padding:0 16px;
+  background:linear-gradient(180deg,#f8f8f6 0%,#eceae6 46%,#d6d5d0 50%,#c6c5c0 100%);
+  border-bottom:3px solid #97a098;box-shadow:0 9px 20px rgba(0,0,0,.38);
+}
+.st-crest{width:26px;height:26px;border-radius:4px;background:var(--crest,#333);flex:0 0 auto;
+  display:grid;place-items:center;font:800 10px/1 var(--mono);color:#fff;letter-spacing:.6px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.35);
+}
+.st-team{position:absolute;left:0;right:0;text-align:center;padding:0 76px;
+  font-size:25px;font-weight:800;letter-spacing:3px;color:#16202e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.st-barmeta{position:absolute;right:16px;font:600 12px/1 var(--mono);color:#4c564d;letter-spacing:.8px}
+.st-tab{position:absolute;left:50%;top:24px;transform:translateX(-50%);padding:5px 20px 4px;
+  background:linear-gradient(180deg,#66aa1d,#3f7d12);color:#fff;font-size:11px;font-weight:700;
+  letter-spacing:3px;border-radius:3px 3px 0 0;box-shadow:0 5px 12px rgba(0,0,0,.32);
+}
+.st-list{position:absolute;left:198px;top:170px;width:472px}
+.st-listhd{font:600 10px/1 var(--mono);letter-spacing:2px;color:rgba(255,255,255,.55);margin:0 0 11px 3px}
+.srow{display:flex;align-items:center;gap:11px;height:30px;padding:0 11px;margin-bottom:3px;border-radius:3px;cursor:pointer;
+  transition:opacity calc(.26s * var(--show-speed)) ease,transform calc(.3s * var(--show-speed)) cubic-bezier(.22,.85,.25,1),background .18s,box-shadow .18s;
+}
+.srow.hide{opacity:0;transform:translateY(-13px);pointer-events:none}
+.srow.act{background:#fafcff;box-shadow:0 3px 10px rgba(0,0,0,.3)}
+.sn{flex:0 0 auto;width:44px;height:22px;border-radius:2px;background:#f7fbff;box-shadow:0 1px 3px rgba(0,0,0,.35);
+  display:grid;place-items:center;font:700 13px/1 var(--mono);color:#141d2a;
+}
+.srow.act .sn{background:transparent;box-shadow:none}
+.snm{flex:1;min-width:0;font-size:15.5px;font-weight:700;letter-spacing:.7px;color:#f6faf7;
+  text-shadow:0 1px 2px rgba(0,0,0,.35);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.srow.act .snm{color:#141d2a;text-shadow:none}
+.scap{flex:0 0 auto;width:16px;height:16px;border-radius:50%;border:1px solid rgba(255,255,255,.65);
+  display:grid;place-items:center;font:700 9px/1 var(--mono);color:#fff;
+}
+.srow.act .scap{border-color:#141d2a;color:#141d2a}
+.st-media{position:absolute;left:700px;top:140px;width:320px;transition:opacity .18s ease,transform .22s ease}
+.st-media.swap{opacity:0;transform:translateY(10px)}
+.st-photo{position:relative;width:320px;height:392px;border-radius:14px;overflow:hidden;
+  background:linear-gradient(180deg,#123a24,#0a1f14);box-shadow:0 22px 46px rgba(0,0,0,.45),0 0 0 1px rgba(255,255,255,.14);
+}
+.st-photo img,.st-photo video{width:100%;height:100%;object-fit:cover;display:block;background:#0a1f14}
+.st-bignum{position:absolute;inset:0;display:grid;place-items:center;
+  font:800 118px/1 var(--mono);color:rgba(255,255,255,.92);letter-spacing:-5px;
+}
+.st-scrim{position:absolute;left:0;right:0;bottom:0;height:152px;
+  background:linear-gradient(180deg,rgba(5,14,9,0),rgba(4,12,8,.55) 45%,rgba(3,10,6,.92));
+}
+.st-meta{position:absolute;left:16px;right:14px;bottom:13px;color:#fff}
+.st-mn{font:700 11.5px/1 var(--mono);letter-spacing:1.2px;color:#dcefe2;opacity:.92}
+.st-pname{font-size:24px;font-weight:800;letter-spacing:1.4px;margin-top:6px;line-height:1.15;text-shadow:0 2px 8px rgba(0,0,0,.55)}
+.st-ppos{font-size:11.5px;letter-spacing:1.2px;color:#c8dbce;margin-top:6px}
+.st-capbadge{position:absolute;right:12px;top:12px;width:24px;height:24px;border-radius:50%;
+  background:var(--amber);color:#231c00;font:800 11px/1 var(--mono);display:grid;place-items:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.45);
+}
+.st-wm{position:absolute;left:0;right:0;bottom:14px;text-align:center;
+  font:600 10px/1 var(--mono);letter-spacing:3px;color:rgba(255,255,255,.42);
+}
+.showctl{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px}
+
+/* ---------- toast ---------- */
+.toast{
+  position:fixed;left:50%;bottom:26px;transform:translate(-50%,14px);z-index:99;
+  background:#1a2520;border:1px solid var(--accent-deep);color:var(--text);
+  font-size:13px;border-radius:9px;padding:9px 16px;opacity:0;pointer-events:none;
+  transition:opacity .18s,transform .18s;box-shadow:0 10px 30px rgba(0,0,0,.5);max-width:80vw;
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media (max-width:900px){
+  .benchcol{flex:1 1 100%}
+  .prow{grid-template-columns:48px 42px minmax(0,1fr) 130px 38px 30px;gap:6px;padding:7px 8px}
+  .topbar{padding:10px 14px}
+  .steps{top:57px;padding:8px 14px}
+  main{padding:16px 14px 70px}
+}
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">SB</div>
+    <div>
+      <div class="brand-title">SOCCERBOARD</div>
+      <div class="brand-sub">足球转播 · 球队介绍系统</div>
+    </div>
+  </div>
+  <div class="teamseg" id="teamSeg">
+    <button data-side="home" aria-pressed="true"><span class="dot" id="dotHome"></span><b id="lblHome">主队</b></button>
+    <button data-side="away" aria-pressed="false"><span class="dot" id="dotAway"></span><b id="lblAway">客队</b></button>
+  </div>
+  <button class="btn ghost sm" id="btnDemoData" title="用完整的示例档案填充主客两队（已有数据时需 3 秒内二次点击确认覆盖）">测试数据</button>
+  <div class="spacer"></div>
+  <div class="savestat" id="saveStat">自动保存已开启</div>
+</header>
+
+<nav class="steps" id="stepNav">
+  <button class="step" data-step="1" aria-current="true"><b>1</b> 比赛设置</button>
+  <button class="step" data-step="2"><b>2</b> 名单录入</button>
+  <button class="step" data-step="3"><b>3</b> 站位编排</button>
+  <button class="step" data-step="4"><b>4</b> 播出与导出</button>
+  <button class="step" data-step="5"><b>5</b> 队员展示</button>
+</nav>
+
+<main id="stepBody"></main>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+"use strict";
+
+/* ================= 阵型库（后场到前场） ================= */
+const mk=(pos,x,y)=>({pos,x,y});
+const FORMATIONS={
+  5:{
+    "2-2":  [mk("GK",50,88),mk("LB",32,66),mk("RB",68,66),mk("LST",34,30),mk("RST",66,30)],
+    "1-2-1":[mk("GK",50,88),mk("CB",50,70),mk("LM",26,48),mk("RM",74,48),mk("ST",50,24)],
+    "3-1":  [mk("GK",50,88),mk("LB",24,68),mk("CB",50,68),mk("RB",76,68),mk("ST",50,28)]
+  },
+  6:{
+    "2-2-1":[mk("GK",50,88),mk("LB",28,68),mk("RB",72,68),mk("LCM",30,48),mk("RCM",70,48),mk("ST",50,24)],
+    "1-3-1":[mk("GK",50,88),mk("CB",50,70),mk("LM",18,48),mk("CM",50,48),mk("RM",82,48),mk("ST",50,24)],
+    "3-2":  [mk("GK",50,88),mk("LB",22,68),mk("CB",50,68),mk("RB",78,68),mk("LM",32,44),mk("RM",68,44)],
+    "2-1-2":[mk("GK",50,88),mk("LB",30,70),mk("RB",70,70),mk("CM",50,50),mk("LST",32,26),mk("RST",68,26)]
+  },
+  8:{
+    "3-2-2":[mk("GK",50,88),mk("LB",24,70),mk("CB",50,70),mk("RB",76,70),mk("LCM",34,50),mk("RCM",66,50),mk("LST",34,26),mk("RST",66,26)],
+    "2-3-2":[mk("GK",50,88),mk("LB",32,72),mk("RB",68,72),mk("LM",22,50),mk("CM",50,50),mk("RM",78,50),mk("LST",34,26),mk("RST",66,26)],
+    "3-3-1":[mk("GK",50,88),mk("LB",24,72),mk("CB",50,72),mk("RB",76,72),mk("LM",22,48),mk("CM",50,48),mk("RM",78,48),mk("ST",50,24)],
+    "4-2-1":[mk("GK",50,88),mk("LB",18,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",82,72),mk("LCM",36,48),mk("RCM",64,48),mk("ST",50,24)]
+  },
+  11:{
+    "4-4-2":  [mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LM",14,48),mk("LCM",38,48),mk("RCM",62,48),mk("RM",86,48),mk("LST",38,22),mk("RST",62,22)],
+    "4-3-3":  [mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LCM",30,50),mk("CM",50,54),mk("RCM",70,50),mk("LW",22,26),mk("ST",50,18),mk("RW",78,26)],
+    "4-2-3-1":[mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LDM",38,56),mk("RDM",62,56),mk("LAM",24,34),mk("CAM",50,32),mk("RAM",76,34),mk("ST",50,16)],
+    "4-4-1-1":[mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LM",14,50),mk("LCM",38,52),mk("RCM",62,52),mk("RM",86,50),mk("SS",50,32),mk("ST",50,15)],
+    "3-5-2":  [mk("GK",50,90),mk("LCB",28,72),mk("CB",50,74),mk("RCB",72,72),mk("LM",12,52),mk("LCM",34,52),mk("CM",50,56),mk("RCM",66,52),mk("RM",88,52),mk("LST",36,24),mk("RST",64,24)],
+    "5-3-2":  [mk("GK",50,90),mk("LWB",10,66),mk("LCB",28,74),mk("CB",50,76),mk("RCB",72,74),mk("RWB",90,66),mk("LCM",32,50),mk("CM",50,52),mk("RCM",68,50),mk("LST",38,24),mk("RST",62,24)]
+  }
+};
+const LABEL={
+  GK:"门将",LB:"左后卫",RB:"右后卫",CB:"中后卫",LCB:"左中卫",RCB:"右中卫",
+  LWB:"左翼卫",RWB:"右翼卫",CDM:"后腰",LDM:"左后腰",RDM:"右后腰",
+  CM:"中前卫",LCM:"左中前卫",RCM:"右中前卫",CAM:"前腰",LAM:"左前腰",RAM:"右前腰",
+  LM:"左前卫",RM:"右前卫",LW:"左边锋",RW:"右边锋",ST:"中锋",LST:"左前锋",RST:"右前锋",SS:"影子前锋",CF:"前锋"
+};
+const POS_BY_COUNT={
+  5:["GK","LB","RB","CB","CM","LM","RM","ST"],
+  6:["GK","LB","RB","CB","LCM","RCM","CM","LM","RM","ST","LST","RST"],
+  8:["GK","LB","RB","CB","LCB","RCB","CDM","LCM","RCM","CM","LM","RM","LW","RW","ST","LST","RST","CAM"],
+  11:["GK","LB","RB","CB","LCB","RCB","LWB","RWB","CDM","LDM","RDM","LCM","RCM","CM","CAM","LAM","RAM","LM","RM","LW","RW","ST","LST","RST","SS","CF"]
+};
+const DEFAULT_FORMATION={5:"2-2",6:"2-2-1",8:"3-2-2",11:"4-4-2"};
+const FONT_SYS='-apple-system,"PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif';
+const FONT_MONO='ui-monospace,Menlo,Consolas,monospace';
+
+/* ================= 状态 ================= */
+function makeTeam(side){
+  return {
+    side, name:"", code:"", color: side==="home" ? "#c8102e" : "#2563eb",
+    count:6, formation:"2-2-1", seq:1,
+    players: Array.from({length:6},()=>emptyPlayer()),
+    slots:null, exportedAt:null, dirty:false
+  };
+}
+function emptyPlayer(t){ return {id:(t?t.seq:0)+0, num:"", name:"", pos:"", captain:false, photo:null, img:null, video:false}; }
+
+const teams={ home:makeTeam("home"), away:makeTeam("away") };
+teams.home.seq=7; teams.home.players=teams.home.players.map((_,i)=>({id:i+1,num:"",name:"",pos:"",captain:false,photo:null,img:null,video:false}));
+teams.away.seq=7; teams.away.players=teams.away.players.map((_,i)=>({id:i+1,num:"",name:"",pos:"",captain:false,photo:null,img:null,video:false}));
+
+const ui={ side:"home", step:1, view:"h", showPhoto:true, showName:true };
+let selSlot=-1;
+let showRosterError=false;
+
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const cur=()=>teams[ui.side];
+const isFilled=p=>String(p.name).trim()!=="" && String(p.num).trim()!=="";
+const playerById=(t,id)=>t.players.find(p=>p.id===id);
+const filledPlayers=t=>t.players.filter(isFilled);
+
+function toast(msg){
+  const t=$("#toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),2400);
+}
+function touch(t){ t.dirty=true; }
+
+/* ================= 槽位 ================= */
+function slotsFor(t){ return FORMATIONS[t.count][t.formation].map(s=>({pos:s.pos,x:s.x,y:s.y,pid:null})); }
+function ensureSlots(t){
+  if(!FORMATIONS[t.count]){ t.count=6; }
+  if(!FORMATIONS[t.count][t.formation]){ t.formation=DEFAULT_FORMATION[t.count]; }
+  if(!Array.isArray(t.slots) || t.slots.length!==FORMATIONS[t.count][t.formation].length){
+    t.slots=slotsFor(t);
+  }
+}
+function compat(a,b){ if(a==="GK") return b==="GK"; if(b==="GK") return false; return true; }
+/* 重建槽位并尽量保留已落位球员：先按同名位置，再按距离最近的可兼容空槽 */
+function rebuildSlots(t){
+  const old=(t.slots||[]).filter(s=>s.pid).map(s=>({pos:s.pos,x:s.x,y:s.y,pid:s.pid}));
+  t.slots=slotsFor(t);
+  old.forEach(o=>{
+    let target=t.slots.find(s=>s.pid==null && s.pos===o.pos);
+    if(!target){
+      let best=null,bd=Infinity;
+      t.slots.forEach(s=>{
+        if(s.pid!=null || !compat(o.pos,s.pos)) return;
+        const d=(s.x-o.x)*(s.x-o.x)+(s.y-o.y)*(s.y-o.y);
+        if(d<bd){bd=d;best=s;}
+      });
+      target=best;
+    }
+    if(target) target.pid=o.pid;
+  });
+}
+
+/* ================= 人数 / 阵型 ================= */
+function adjustRows(t,n){
+  while(t.players.length>n && !isFilled(t.players[t.players.length-1])) t.players.pop();
+  while(t.players.length<n) t.players.push(emptyPlayer(t));
+}
+function setCountAll(n){
+  if(!FORMATIONS[n]) return;
+  let changed=false;
+  ["home","away"].forEach(side=>{
+    const t=teams[side];
+    if(t.count===n && FORMATIONS[n][t.formation]) return;
+    t.count=n;
+    if(!FORMATIONS[n][t.formation]) t.formation=DEFAULT_FORMATION[n];
+    adjustRows(t,n);
+    rebuildSlots(t);
+    touch(t);
+    changed=true;
+  });
+  if(changed){
+    selSlot=-1;
+    toast(`已切换为 ${n} 人制：录入行数与阵型库已更新（两队同步）`);
+    renderAll(); queueSave();
+  }
+}
+function setFormation(t,f){
+  if(!FORMATIONS[t.count] || !FORMATIONS[t.count][f]) return;
+  t.formation=f;
+  rebuildSlots(t);
+  touch(t); queueSave();
+  renderStep();
+}
+
+/* ================= 持久化（IndexedDB，localStorage 兜底） ================= */
+const DB_NAME="soccerboard", STORE="kv";
+function idbOpen(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open(DB_NAME,1);
+    r.onupgradeneeded=()=>{ r.result.createObjectStore(STORE); };
+    r.onsuccess=()=>res(r.result);
+    r.onerror=()=>rej(r.error);
+  });
+}
+async function idbSet(k,v){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,"readwrite");
+    tx.objectStore(STORE).put(v,k);
+    tx.oncomplete=()=>res();
+    tx.onerror=()=>rej(tx.error);
+  });
+}
+async function idbGet(k){
+  const db=await idbOpen();
+  return new Promise((res,rej)=>{
+    const tx=db.transaction(STORE,"readonly");
+    const q=tx.objectStore(STORE).get(k);
+    q.onsuccess=()=>res(q.result);
+    q.onerror=()=>rej(q.error);
+  });
+}
+function serialize(){
+  const t={};
+  ["home","away"].forEach(side=>{
+    const x=teams[side];
+    t[side]={
+      side:x.side,name:x.name,code:x.code,color:x.color,count:x.count,formation:x.formation,
+      seq:x.seq,exportedAt:x.exportedAt,dirty:x.dirty,
+      players:x.players.map(p=>({id:p.id,num:p.num,name:p.name,pos:p.pos,captain:!!p.captain,photo:p.photo,video:!!p.video})),
+      slots:(x.slots||[]).map(s=>({pos:s.pos,x:s.x,y:s.y,pid:s.pid}))
+    };
+  });
+  return {v:1,teams:t,ui:{side:ui.side,step:ui.step,view:ui.view,showPhoto:ui.showPhoto,showName:ui.showName}};
+}
+function hydrate(side,d){
+  const t=teams[side];
+  if(!d) return;
+  t.name=String(d.name||""); t.code=String(d.code||"");
+  t.color=/^#[0-9a-fA-F]{6}$/.test(d.color)?d.color:t.color;
+  if(FORMATIONS[d.count]) t.count=d.count;
+  if(FORMATIONS[t.count] && FORMATIONS[t.count][d.formation]) t.formation=d.formation;
+  t.seq=+d.seq||1;
+  t.exportedAt=d.exportedAt||null; t.dirty=!!d.dirty;
+  if(Array.isArray(d.players)){
+    t.players=d.players.map(p=>({
+      id:+p.id||t.seq++, num:String(p.num||""), name:String(p.name||""), pos:String(p.pos||""),
+      captain:!!p.captain, photo:(typeof p.photo==="string"?p.photo:null), img:null, video:!!p.video
+    }));
+    t.players.forEach(p=>{ if(p.photo){ p.img=new Image(); p.img.src=p.photo; } });
+  }
+  if(Array.isArray(d.slots)){
+    t.slots=d.slots.map(s=>({pos:String(s.pos||""),x:+s.x||50,y:+s.y||50,pid:(s.pid==null?null:+s.pid)}));
+  }
+  ensureSlots(t);
+  const maxId=t.players.reduce((m,p)=>Math.max(m,p.id),0);
+  if(t.seq<=maxId) t.seq=maxId+1;
+}
+let saveTimer=null;
+function queueSave(){
+  const s=$("#saveStat"); if(s) s.textContent="保存中…";
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(doSave,400);
+}
+async function doSave(){
+  const data=serialize();
+  try{
+    await idbSet("state",data);
+    const s=$("#saveStat");
+    if(s) s.textContent="已自动保存 "+new Date().toLocaleTimeString("zh-CN",{hour12:false});
+  }catch(e){
+    try{
+      localStorage.setItem("soccerboard",JSON.stringify(data));
+      const s=$("#saveStat");
+      if(s) s.textContent="已自动保存 "+new Date().toLocaleTimeString("zh-CN",{hour12:false});
+    }catch(_){/* 存储不可用时静默降级，不阻断使用 */}
+  }
+}
+
+/* ================= 校验 ================= */
+function validateTeam(t){
+  const res={ok:true,errors:[],warnings:[],bad:[]};
+  const filled=filledPlayers(t);
+  if(!t.name.trim()){ res.ok=false; res.errors.push("请填写球队名称"); }
+  if(filled.length<t.count){
+    res.ok=false;
+    res.errors.push(`首发人数不足：已填 ${filled.length} / ${t.count}`);
+    t.players.filter(p=>!isFilled(p)).slice(0,Math.max(1,t.count-filled.length)).forEach(p=>res.bad.push(p.id));
+  }
+  const badNum=filled.find(p=>!(+p.num>=1&&+p.num<=99));
+  if(badNum){ res.ok=false; res.errors.push(`${badNum.name||"某球员"} 的号码需在 1–99 之间`); res.bad.push(badNum.id); }
+  const seen={}; let dup=null,dupOf=null;
+  filled.forEach(p=>{ const k=String(p.num).trim(); if(seen[k]){dup=p;dupOf=seen[k];} else seen[k]=p; });
+  if(dup){ res.ok=false; res.errors.push(`号码 ${dup.num} 已被 ${dupOf.name||"另一名球员"} 占用`); res.bad.push(dup.id); }
+  if(!filled.some(p=>p.pos==="GK")){ res.ok=false; res.errors.push("还没有设置门将：请把一位球员的主位置设为 GK"); }
+  if(filled.filter(p=>p.captain).length>1){ res.ok=false; res.errors.push("一支球队只能有一名队长"); }
+  if(!filled.some(p=>p.captain)) res.warnings.push("尚未指定队长");
+  const noPhoto=filled.filter(p=>!p.photo).length;
+  if(noPhoto) res.warnings.push(`${noPhoto} 名球员未上传照片（站位图将显示号码占位）`);
+  return res;
+}
+
+/* ================= 渲染：顶栏与导航 ================= */
+function renderTop(){
+  const h=teams.home,a=teams.away;
+  $("#lblHome").textContent=h.name.trim()||"主队";
+  $("#lblAway").textContent=a.name.trim()||"客队";
+  $("#dotHome").style.background=h.color;
+  $("#dotAway").style.background=a.color;
+  $$("#teamSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.side===ui.side)));
+  $$("#stepNav .step").forEach(b=>{
+    b.setAttribute("aria-current",String(+b.dataset.step===ui.step));
+    b.classList.toggle("done",+b.dataset.step<ui.step);
+  });
+}
+function renderAll(){ renderTop(); renderStep(); }
+function renderStep(){
+  const t=cur();
+  if(ui.step===1) renderSetup(t);
+  else if(ui.step===2) renderRoster(t);
+  else if(ui.step===3) renderBoard(t);
+  else if(ui.step===4) renderCast(t);
+  else renderShowcase(t);
+}
+
+/* ================= 步骤 1：比赛设置 ================= */
+function renderSetup(t){
+  const counts=[5,6,8,11].map(n=>`
+    <button type="button" class="pill" data-count="${n}" aria-pressed="${t.count===n}">${n} 人制<small>${Object.keys(FORMATIONS[n]).length} 套阵型</small></button>`).join("");
+  const fkeys=Object.keys(FORMATIONS[t.count]);
+  $("#stepBody").innerHTML=`
+  <section class="card">
+    <div class="hd">
+      <div>
+        <h2>比赛与人数设置 · ${t.side==="home"?"主队":"客队"}</h2>
+        <p>先确定本场是谁、上几个人、默认怎么站。人数为同一场比赛的主客队共用设置。</p>
+      </div>
+      <span class="chipstat">${esc(t.name.trim()||"未命名")} · ${t.count} 人制</span>
+    </div>
+    <div class="row2">
+      <div class="field" style="flex:2 1 320px">
+        <label class="lbl" for="f-name">球队全称 *</label>
+        <input type="text" id="f-name" value="${esc(t.name)}" placeholder="例如：上海海港" maxlength="24">
+      </div>
+      <div class="field" style="flex:1 1 200px">
+        <label class="lbl" for="f-code">三字代码（窄屏字幕 / 角标）</label>
+        <input type="text" id="f-code" value="${esc(t.code)}" placeholder="SHH" maxlength="4" style="font-family:var(--mono);text-transform:uppercase">
+      </div>
+      <div class="field" style="flex:0 1 190px">
+        <label class="lbl" for="f-color">球队主色（缺照片时的占位底色）</label>
+        <div class="colorline">
+          <input type="color" id="f-color" value="${esc(t.color)}">
+          <span class="colorhex">${esc(t.color)}</span>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <span class="lbl">场上人数 *（决定阵型库与录入行数）</span>
+      <div class="chipset" id="countSet">${counts}</div>
+      <div class="note">同一比赛的主客队人数一致：切换会同步另一支球队的行数与阵型库，已录入内容按行序保留，多出的球员转为替补。</div>
+    </div>
+    <div class="field">
+      <label class="lbl" for="f-formation">默认阵型（后场 → 前场）</label>
+      <select id="f-formation">
+        ${fkeys.map(k=>`<option value="${k}"${k===t.formation?" selected":""}>${k}</option>`).join("")}
+      </select>
+      <div class="note" id="formationHint">${t.count} 人制共 ${fkeys.length} 套阵型；之后随时可在「站位编排」中切换，切换时会尽量保留已落位球员。</div>
+    </div>
+    <div class="btnrow">
+      <button class="btn primary" data-next="2">下一步：名单录入</button>
+      <span class="meta">球队全称未填写时无法进入下一步</span>
+    </div>
+  </section>`;
+}
+
+/* ================= 步骤 2：名单录入 ================= */
+function posOptions(t,sel){
+  return POS_BY_COUNT[t.count].map(p=>`<option value="${p}"${p===sel?" selected":""}>${p} · ${LABEL[p]||p}</option>`).join("");
+}
+function rosterMetaText(t){
+  const filled=filledPlayers(t).length;
+  const start=Math.min(filled,t.count);
+  return `已填 ${start} / ${t.count}`+(filled>t.count?` · 替补 ${filled-t.count}`:"");
+}
+function renderRoster(t){
+  const v=validateTeam(t);
+  const showError=showRosterError&&v.errors.length>0;
+  const rows=t.players.map(p=>`
+    <div class="prow${showError&&v.bad.includes(p.id)?" bad":""}" data-pid="${p.id}">
+      <input class="in-num" type="text" inputmode="numeric" maxlength="2" placeholder="#" value="${esc(p.num)}" aria-label="球衣号码">
+      <label class="ph" title="${p.photo?"替换照片":"上传照片"}">
+        ${p.photo?`<img src="${p.photo}" alt="">`:"<span>＋</span>"}
+        <input type="file" accept="image/*" aria-label="上传照片">
+      </label>
+      <input class="in-name" type="text" value="${esc(p.name)}" placeholder="球员姓名" maxlength="20" aria-label="球员姓名">
+      <select class="in-pos" aria-label="主位置">
+        <option value="">主位置</option>${posOptions(t,p.pos)}
+      </select>
+      <button type="button" class="cap${p.captain?" on":""}" aria-pressed="${p.captain}" title="设为队长（全队唯一）">C</button>
+      <button type="button" class="del" title="删除该球员">×</button>
+    </div>`).join("");
+  $("#stepBody").innerHTML=`
+  <section class="card">
+    <div class="hd">
+      <div>
+        <h2>球员逐位录入 · ${esc(t.name.trim()||((t.side==="home"?"主队":"客队")+"（未命名）"))}</h2>
+        <p>一人一行：号码、照片、姓名、主位置、队长。已填以「姓名 + 号码」均非空计数；超出首发的行视为替补。</p>
+      </div>
+      <span class="chipstat" id="rosterMeta">${rosterMetaText(t)}</span>
+    </div>
+    <div class="errbox${showError?" on":""}" id="rosterErr">${showError?esc(v.errors[0]):""}</div>
+    <div class="warnbox${v.warnings.length&&filledPlayers(t).length?" on":""}" id="rosterWarn">${v.warnings.length?esc(v.warnings.join("；")):""}</div>
+    <div class="roster" id="rosterList">${rows}</div>
+    <div class="btnrow">
+      <button class="btn" id="btnAddSub">＋ 添加替补行</button>
+      <span class="meta">替补不占首发名额，可在站位编排时从替补席放入</span>
+      <span class="spacer" style="flex:1"></span>
+      <button class="btn ghost" data-prev="1">上一步</button>
+      <button class="btn primary" id="btnToBoard">校验并进入站位编排</button>
+    </div>
+  </section>`;
+}
+function updateRosterMeta(){
+  const m=$("#rosterMeta"); if(m) m.textContent=rosterMetaText(cur());
+}
+
+/* ================= 步骤 3：站位编排 ================= */
+function slotNode(t,s,i){
+  const p=s.pid!=null?playerById(t,s.pid):null;
+  const inner=p
+    ?(p.photo?`<img src="${p.photo}" alt="">`:esc(p.num||"–"))
+    :"＋";
+  return `<div class="slot${p?"":" empty"}${selSlot===i?" sel":""}" data-slot="${i}" style="left:${s.x}%;top:${s.y}%">
+    <div class="bubble"${p&&!p.photo?` style="background:${esc(t.color)}"`:""}>${inner}${p&&p.captain?'<span class="capdot">C</span>':""}</div>
+    ${p?`<div class="tag">${esc(p.name)}</div>`:""}
+    <div class="postag">${esc(s.pos)}</div>
+  </div>`;
+}
+function renderBoard(t){
+  const placed=t.slots.filter(s=>s.pid!=null).length;
+  const fkeys=Object.keys(FORMATIONS[t.count]);
+  const used=new Set(t.slots.map(s=>s.pid).filter(v=>v!=null));
+  const bench=filledPlayers(t).map(p=>`
+    <button type="button" class="bp${used.has(p.id)?" used":""}" data-bench="${p.id}">
+      <b>${esc(p.num||"–")}</b><span>${esc(p.name)}</span><i>${esc(p.pos||"")}</i>
+    </button>`).join("");
+  $("#stepBody").innerHTML=`
+  <section class="card">
+    <div class="hd">
+      <div>
+        <h2>阵型站位编排 · ${esc(t.name.trim()||"未命名")}</h2>
+        <p>点击槽位选中，再点替补席球员放入；依次点击两个已占用槽位可交换；点击选中已占用槽位再点空槽位可移动。</p>
+      </div>
+      <span class="chipstat${placed===t.slots.length?" ok":""}" id="placedCount">已落位 ${placed} / ${t.slots.length}</span>
+    </div>
+    <div class="toolbar">
+      <label class="lbl" for="boardFormation" style="margin:0">阵型</label>
+      <select id="boardFormation">
+        ${fkeys.map(k=>`<option value="${k}"${k===t.formation?" selected":""}>${k}</option>`).join("")}
+      </select>
+      <button class="btn" id="btnAutoFill">⚡ 自动落位</button>
+      <button class="btn ghost" id="btnClearSlots">清空落位</button>
+    </div>
+    <div class="boardwrap">
+      <div class="pitchcol">
+        <div class="pitch" id="pitch">
+          <div class="mk mk-field"></div>
+          <div class="mk mk-mid"></div>
+          <div class="mk mk-circle"></div>
+          <div class="mk mk-spot"></div>
+          <div class="mk mk-box top"></div>
+          <div class="mk mk-box bot"></div>
+          <div class="mk mk-gbox top"></div>
+          <div class="mk mk-gbox bot"></div>
+          ${t.slots.map((s,i)=>slotNode(t,s,i)).join("")}
+        </div>
+      </div>
+      <div class="benchcol">
+        <div class="bench-hd"><span>替补席（未落位）</span><b id="benchMeta"></b></div>
+        <div class="bench" id="benchList">
+          ${bench||'<p class="benchnote">还没有已命名的球员。已落位球员在此置灰显示。</p>'}
+        </div>
+      </div>
+    </div>
+    <div class="btnrow">
+      <button class="btn ghost" data-prev="2">上一步</button>
+      <button class="btn primary" data-next="4">下一步：播出预览</button>
+      <span class="meta">槽位未填满时可进入预览，但导出不可用</span>
+    </div>
+  </section>`;
+  const bm=$("#benchMeta");
+  if(bm) bm.textContent=`${filledPlayers(t).length-used.size} 人`;
+}
+
+/* ================= 步骤 4：播出预览与导出 ================= */
+function renderCast(t){
+  const v=validateTeam(t);
+  const missing=t.slots.filter(s=>s.pid==null).length;
+  const canExport=v.ok&&missing===0;
+  let note,noteCls="okbox";
+  if(!v.ok){ note=v.errors[0]; noteCls="errbox"; }
+  else if(missing){ note=`草稿态：还有 ${missing} 个位置未安排球员，此时不能导出图片。`; noteCls="warnbox"; }
+  else if(t.exportedAt&&t.dirty){ note="档案已修改，画面需重新导出。"; noteCls="warnbox"; }
+  else if(t.exportedAt){ note=`画面与最近一次导出一致（${fmtTime(t.exportedAt)}）。`; }
+  else { note="画面已完整，可直接导出；导出内容与预览一致。"; }
+  const blockReason=!canExport?(v.errors[0]||`还有 ${missing} 个位置未安排球员`):"";
+  $("#stepBody").innerHTML=`
+  <section class="card">
+    <div class="hd">
+      <div>
+        <h2>播出站位图 · ${esc(t.name.trim()||"未命名")}</h2>
+        <p>预览画面即导出画面，${ui.view==="h"?"横向 1920 × 1080":"纵向 1080 × 1920（竖屏播出 / 更衣室大屏）"}。点击「播放动画」预览入场效果，动画可导出为 MP4 / WebM 视频；导出 PNG 为完整静态画面。</p>
+      </div>
+      <span class="chipstat${canExport?" ok":""}">${canExport?"可导出":"草稿"}</span>
+    </div>
+    <div class="castctl">
+      <div class="seg" id="viewSeg">
+        <button type="button" data-view="h" aria-pressed="${ui.view==="h"}">横向 16:9</button>
+        <button type="button" data-view="v" aria-pressed="${ui.view==="v"}">纵向 9:16</button>
+      </div>
+      <button type="button" class="toggle" data-toggle="showPhoto" aria-pressed="${ui.showPhoto}">显示头像</button>
+      <button type="button" class="toggle" data-toggle="showName" aria-pressed="${ui.showName}">显示姓名</button>
+      <span class="expinfo">${t.count} 人制 · ${t.formation} · ${t.side==="home"?"主队":"客队"}</span>
+      <span style="flex:1"></span>
+      <button type="button" class="btn" id="btnPlayAnim" title="球员按门将→后卫→中场→前锋依次入场；双击画面也可重播">▶ 播放动画</button>
+    </div>
+    <div class="${noteCls} on" id="castNote">${esc(note)}</div>
+    <div class="castwrap"><canvas id="previewCanvas" class="cast-canvas${ui.view==="v"?" vertical":""}"></canvas></div>
+    <div class="statusline"><span class="t">EXPORT</span><span id="castBlock">${blockReason?esc("导出不可用："+blockReason):""}</span></div>
+    ${v.warnings.length&&canExport?`<div class="warnbox on">${esc(v.warnings.join("；"))}</div>`:""}
+    <div class="btnrow">
+      <button class="btn ghost" data-prev="3">上一步</button>
+      <button class="btn primary" id="btnExportPng"${canExport?"":" disabled"}>导出站位图 PNG</button>
+      <button class="btn" id="btnExportAnim"${canExport&&pickVideoMime()?"":" disabled"} title="把入场动画录制成视频文件；录制期间请停留在本页">导出动画视频${pickVideoMime()?(pickVideoMime().indexOf("mp4")>-1?"（MP4）":"（WebM）"):"（此浏览器不支持）"}</button>
+      <button class="btn" id="btnExportJson"${canExport?"":" disabled"}>导出名单 JSON</button>
+      <span class="meta expinfo" id="exportInfo">${t.exportedAt?`最近导出：${fmtTime(t.exportedAt)}${t.dirty?" · 已修改":""}`:"尚未导出"}</span>
+      <button class="btn" data-next="5">下一步：队员展示</button>
+    </div>
+  </section>`;
+  const noteEl=$("#castNote");
+  if(noteEl){ noteEl.className=noteCls+" on"; noteEl.textContent=note; }
+  paintPreview();
+}
+function fmtTime(ts){
+  return new Date(ts).toLocaleString("zh-CN",{hour12:false});
+}
+
+/* ================= 步骤 5：队员信息展示 ================= */
+const show={list:[],i:-1,timer:null,mt:null,playing:false,token:0};
+const showSlow=9; // 播放节奏倍数，与 .stage 的 --show-speed 保持一致
+const vidCache=new Map();
+
+function showcaseList(t){
+  const placed=(t.slots||[]).filter(s=>s.pid!=null).map(s=>{
+    const p=playerById(t,s.pid);
+    return p?{p,pos:s.pos}:null;
+  }).filter(Boolean);
+  if(placed.length) return placed; // 只展示已落位的首发球员，替补不进入首发名单
+  return filledPlayers(t).map(p=>({p,pos:p.pos}));
+}
+function fitStage(){
+  const box=$("#showBox"), st=$("#showStage");
+  if(!box||!st) return;
+  const w=box.clientWidth||1120;
+  st.style.transform=`scale(${w/1200})`;
+}
+async function getVideoUrl(p){
+  if(vidCache.has(p.id)) return vidCache.get(p.id);
+  try{
+    const blob=await idbGet("v:"+p.id);
+    if(!blob) return null;
+    const url=URL.createObjectURL(blob);
+    vidCache.set(p.id,url);
+    return url;
+  }catch(e){ return null; }
+}
+function paintShowMedia(i){
+  const media=$("#showMedia"); if(!media) return;
+  const item=show.list[i];
+  if(!item){ media.innerHTML=""; return; }
+  const p=item.p, pos=item.pos||p.pos;
+  let inner;
+  if(p.video) inner=`<video data-pid="${p.id}" autoplay muted loop playsinline></video>`;
+  else if(p.photo) inner=`<img src="${p.photo}" alt="${esc(p.name)}">`;
+  else inner=`<div class="st-bignum">${esc(p.num||"—")}</div>`;
+  media.innerHTML=`
+    <div class="st-photo">
+      ${inner}
+      ${p.captain?'<span class="st-capbadge">C</span>':""}
+      <div class="st-scrim"></div>
+      <div class="st-meta">
+        <div class="st-mn">#${esc(p.num||"—")} · ${esc(LABEL[pos]||pos||"球员")}</div>
+        <div class="st-pname">${esc(p.name)}</div>
+        <div class="st-ppos">${esc(pos||"位置未设置")}${p.captain?" · 队长":""}</div>
+      </div>
+    </div>`;
+  refreshVideoBtn();
+  if(p.video) loadShowVideo(p);
+}
+async function loadShowVideo(p){
+  const url=await getVideoUrl(p);
+  const v=$("#showMedia video");
+  if(!v||+v.dataset.pid!==p.id) return;
+  if(!url){
+    p.video=false; touch(cur()); queueSave();
+    toast("该球员的视频文件已丢失，已回退为照片");
+    paintShowMedia(show.i<0?0:show.i);
+    return;
+  }
+  v.src=url;
+  v.play().catch(()=>{});
+}
+function refreshVideoBtn(){
+  const rm=$("#btnVideoRm"); if(!rm) return;
+  const item=show.list[show.i];
+  rm.style.display=(item&&item.p.video)?"":"none";
+}
+function setShowActive(i,instant){
+  show.i=i;
+  $$("#showList .srow").forEach((r,k)=>r.classList.toggle("act",k===i));
+  const media=$("#showMedia"); if(!media) return;
+  if(instant){ paintShowMedia(i); return; }
+  const token=++show.token;
+  media.classList.add("swap");
+  clearTimeout(show.mt);
+  show.mt=setTimeout(()=>{
+    if(token!==show.token) return;
+    paintShowMedia(i);
+    media.classList.remove("swap");
+  },150);
+}
+function playShow(){
+  const rows=$$("#showList .srow");
+  if(!rows.length) return;
+  clearTimeout(show.timer); clearTimeout(show.mt);
+  show.playing=true; show.i=-1;
+  rows.forEach(r=>{ r.classList.add("hide"); r.classList.remove("act"); });
+  const media=$("#showMedia"); if(media) media.classList.add("swap");
+  void rows[0].offsetWidth;
+  const tick=i=>{
+    if(i>=rows.length){ show.playing=false; return; }
+    rows[i].classList.remove("hide");
+    setShowActive(i);
+    show.timer=setTimeout(()=>tick(i+1),280*showSlow);
+  };
+  show.timer=setTimeout(()=>tick(0),220*showSlow);
+}
+function resetShow(){
+  clearTimeout(show.timer); clearTimeout(show.mt);
+  show.playing=false;
+  $$("#showList .srow").forEach(r=>r.classList.remove("hide"));
+  setShowActive(0);
+}
+function removeShowVideo(){
+  const item=show.list[show.i]; if(!item) return;
+  const p=item.p, idx=Math.max(0,show.i);
+  try{ idbSet("v:"+p.id,null); }catch(e){}
+  const u=vidCache.get(p.id);
+  if(u){ URL.revokeObjectURL(u); vidCache.delete(p.id); }
+  p.video=false; touch(cur()); queueSave();
+  renderShowcase(cur()); setShowActive(idx);
+  toast("已移除该球员视频");
+}
+function renderShowcase(t){
+  const v=validateTeam(t);
+  const list=showcaseList(t);
+  clearTimeout(show.timer); clearTimeout(show.mt);
+  show.playing=false; show.list=list; show.i=list.length?0:-1; show.token++;
+  const rows=list.map((x,i)=>`
+    <div class="srow${i===0?" act":""}" data-show="${i}">
+      <span class="sn">${esc(x.p.num||"—")}</span>
+      <span class="snm">${esc(x.p.name)}</span>
+      ${x.p.captain?'<span class="scap">C</span>':""}
+    </div>`).join("");
+  const warn=!list.length
+    ? `<div class="errbox on">还没有已命名的球员，先到「名单录入」填写号码与姓名。</div>`
+    : (!v.ok?`<div class="errbox on">${esc(v.errors[0])}</div>`:"");
+  $("#stepBody").innerHTML=`
+  <section class="card">
+    <div class="hd">
+      <div>
+        <h2>队员信息展示 · ${esc(t.name.trim()||"未命名")}</h2>
+        <p>转播风格介绍页：左侧名单自门将向锋线逐行入场，高亮行与右侧媒体区同步；点击任意一行可直接切换。右侧默认显示该球员照片，也可上传视频替换。</p>
+      </div>
+      <span class="chipstat${v.ok?" ok":""}">${list.length} 人 · ${t.count} 人制 · ${esc(t.formation)}</span>
+    </div>
+    ${warn}
+    <div class="showwrap">
+      <div class="showbox" id="showBox">
+        <div class="stage" id="showStage" style="--crest:${esc(t.color)}">
+          <div class="st-bg"></div>
+          <div class="st-drape"></div>
+          <div class="st-bar">
+            <span class="st-crest">${esc(t.code.trim()||"SB")}</span>
+            <span class="st-team">${esc(t.name.trim()||"TEAM")}</span>
+            <span class="st-barmeta">${t.count} · ${esc(t.formation)}</span>
+          </div>
+          <div class="st-tab">LINE-UP</div>
+          <div class="st-list" id="showList">
+            <div class="st-listhd">STARTING LINE-UP · 首发</div>
+            ${rows||'<div class="srow act"><span class="sn">—</span><span class="snm">暂无球员</span></div>'}
+          </div>
+          <div class="st-media" id="showMedia"></div>
+          <div class="st-wm">SOCCERBOARD · 队员介绍</div>
+        </div>
+      </div>
+    </div>
+    <div class="showctl">
+      <button class="btn primary" id="btnShowPlay"${list.length?"":" disabled"}>▶ 播放展示</button>
+      <button class="btn ghost" id="btnShowReset"${list.length?"":" disabled"}>重置名单</button>
+      <button class="btn" id="btnShowExport"${list.length&&pickVideoMime()?"":" disabled"} title="把队员展示动画录制成视频文件；录制期间请停留在本页">导出动画视频${pickVideoMime()?(pickVideoMime().indexOf("mp4")>-1?"（MP4）":"（WebM）"):"（此浏览器不支持）"}</button>
+      <label class="btn" title="为当前高亮球员上传一段视频，右侧改为播放该视频">📹 上传视频
+        <input type="file" accept="video/*" id="videoFile" style="display:none">
+      </label>
+      <button class="btn ghost" id="btnVideoRm">移除视频</button>
+      <span class="meta">视频保存在本机浏览器数据库（IndexedDB），不上传服务器</span>
+    </div>
+  </section>`;
+  fitStage();
+  requestAnimationFrame(fitStage);
+  paintShowMedia(show.i);
+  if(!list.length){ const rm=$("#btnVideoRm"); if(rm) rm.style.display="none"; }
+}
+
+/* ================= 展示动画录制：用同一套设计坐标把舞台画进 canvas ================= */
+const showTm={lead:220,step:280,rowIn:300,fade:150};
+let showRec=null;
+function rrPath(x,px,py,pw,ph,r){
+  x.beginPath();
+  x.moveTo(px+r,py);
+  x.arcTo(px+pw,py,px+pw,py+ph,r);
+  x.arcTo(px+pw,py+ph,px,py+ph,r);
+  x.arcTo(px,py+ph,px,py,r);
+  x.arcTo(px,py,px+pw,py,r);
+  x.closePath();
+}
+function spacedText(x,text,px,y,sp,align){
+  const chars=Array.from(String(text));
+  let w=0; chars.forEach(ch=>w+=x.measureText(ch).width+sp); w-=sp;
+  let sx=align==="center"?px-w/2:align==="right"?px-w:px;
+  x.textAlign="left";
+  chars.forEach(ch=>{ x.fillText(ch,sx,y); sx+=x.measureText(ch).width+sp; });
+}
+function drawShowMedia(x,item,alpha,dy){
+  const p=item.p, pos=item.pos||p.pos;
+  const X=700,Y=140,W=320,H=392,lab=LABEL[pos]||pos||"球员";
+  x.save();
+  x.globalAlpha=alpha;
+  x.translate(0,dy);
+  x.save();
+  x.shadowColor="rgba(0,0,0,.45)"; x.shadowBlur=24; x.shadowOffsetY=14;
+  rrPath(x,X,Y,W,H,14); x.fillStyle="#0a1f14"; x.fill();
+  x.restore();
+  x.save();
+  rrPath(x,X,Y,W,H,14); x.clip();
+  const cardBg=x.createLinearGradient(0,Y,0,Y+H);
+  cardBg.addColorStop(0,"#123a24"); cardBg.addColorStop(1,"#0a1f14");
+  x.fillStyle=cardBg; x.fillRect(X,Y,W,H);
+  if(p.img&&p.img.complete&&p.img.naturalWidth){
+    const iw=p.img.naturalWidth, ih=p.img.naturalHeight;
+    const k=Math.max(W/iw,H/ih), w=iw*k, h=ih*k;
+    x.drawImage(p.img,X+(W-w)/2,Y+(H-h)/2,w,h);
+  }else{
+    x.fillStyle="rgba(255,255,255,.92)";
+    x.font=`800 118px ${FONT_MONO}`;
+    x.textAlign="center"; x.textBaseline="middle";
+    x.fillText(p.num||"—",X+W/2,Y+H/2-14);
+  }
+  const scrim=x.createLinearGradient(0,Y+H-152,0,Y+H);
+  scrim.addColorStop(0,"rgba(5,14,9,0)");
+  scrim.addColorStop(.45,"rgba(4,12,8,.55)");
+  scrim.addColorStop(1,"rgba(3,10,6,.92)");
+  x.fillStyle=scrim; x.fillRect(X,Y+H-152,W,152);
+  x.restore();
+  x.save();
+  x.textBaseline="middle"; x.textAlign="left";
+  x.fillStyle="#dcefe2"; x.font=`700 11.5px ${FONT_MONO}`;
+  spacedText(x,`#${p.num||"—"} · ${lab}`,X+16,460,1.2,"left");
+  x.fillStyle="#ffffff"; x.font=`800 24px ${FONT_SYS}`;
+  spacedText(x,p.name,X+16,486,1.4,"left");
+  x.fillStyle="#c8dbce"; x.font=`500 11.5px ${FONT_SYS}`;
+  spacedText(x,`${pos||"位置未设置"}${p.captain?" · 队长":""}`,X+16,510,1.2,"left");
+  if(p.captain){
+    x.beginPath(); x.arc(X+W-24,Y+24,12,0,Math.PI*2);
+    x.fillStyle="#f2c94c"; x.fill();
+    x.fillStyle="#231c00"; x.font=`800 11px ${FONT_MONO}`; x.textAlign="center";
+    x.fillText("C",X+W-24,Y+25);
+  }
+  x.restore();
+  x.restore();
+}
+function paintShowFrame(x,t,list,now){
+  const S=1.6; // 1200×675 设计稿 → 1920×1080
+  const speed=showSlow;
+  x.setTransform(S,0,0,S,0,0);
+  x.clearRect(0,0,1200,675);
+  x.textBaseline="alphabetic"; x.textAlign="left";
+
+  /* 球场背景 */
+  const bg=x.createLinearGradient(60,-80,760,675);
+  bg.addColorStop(0,"#9dae9a"); bg.addColorStop(.26,"#68795f");
+  bg.addColorStop(.6,"#2f4029"); bg.addColorStop(1,"#101a0f");
+  x.fillStyle=bg; x.fillRect(0,0,1200,675);
+  const glow=x.createRadialGradient(190,-50,10,190,-50,760);
+  glow.addColorStop(0,"rgba(205,214,201,.8)"); glow.addColorStop(.45,"rgba(205,214,201,0)");
+  x.fillStyle=glow; x.fillRect(0,0,1200,675);
+  x.save(); x.globalAlpha=.05; x.strokeStyle="#fff"; x.lineWidth=2;
+  for(let i=-160;i<1400;i+=26){ x.beginPath(); x.moveTo(i,0); x.lineTo(i+320,675); x.stroke(); }
+  x.restore();
+
+  /* 绿色垂坠横幅 */
+  x.save();
+  rrPath(x,118,100,964,558,10);
+  const dg=x.createLinearGradient(0,100,0,658);
+  dg.addColorStop(0,"#20601a"); dg.addColorStop(.2,"#3f7d13");
+  dg.addColorStop(.46,"#6b9f16"); dg.addColorStop(.62,"#86ba19"); dg.addColorStop(1,"#3d7314");
+  x.fillStyle=dg; x.fill();
+  x.clip();
+  for(let fx=118;fx<1082;fx+=30){
+    x.fillStyle="rgba(0,0,0,.20)"; x.fillRect(fx,100,8,558);
+    x.fillStyle="rgba(255,255,255,.06)"; x.fillRect(fx+22,100,12,558);
+  }
+  x.fillStyle="rgba(255,255,255,.25)"; x.fillRect(118,100,964,8);
+  x.restore();
+
+  /* 顶部金属条 + LINE-UP 标签 */
+  const sh=x.createLinearGradient(0,94,0,124);
+  sh.addColorStop(0,"rgba(0,0,0,.35)"); sh.addColorStop(1,"rgba(0,0,0,0)");
+  x.fillStyle=sh; x.fillRect(30,94,1140,30);
+  const mb=x.createLinearGradient(0,56,0,94);
+  mb.addColorStop(0,"#f8f8f6"); mb.addColorStop(.46,"#eceae6");
+  mb.addColorStop(.5,"#d6d5d0"); mb.addColorStop(1,"#c6c5c0");
+  x.fillStyle=mb; x.fillRect(30,56,1140,38);
+  x.fillStyle="#97a098"; x.fillRect(30,91,1140,3);
+  rrPath(x,46,62,26,26,4); x.fillStyle=t.color||"#2b6"; x.fill();
+  x.fillStyle="#fff"; x.font=`800 10px ${FONT_MONO}`; x.textAlign="center"; x.textBaseline="middle";
+  x.fillText((t.code.trim()||"SB").slice(0,4),59,75);
+  x.fillStyle="#16202e"; x.font=`800 25px ${FONT_SYS}`;
+  spacedText(x,t.name.trim()||"TEAM",600,76,3,"center");
+  x.fillStyle="#4c564d"; x.font=`600 12px ${FONT_MONO}`; x.textAlign="right";
+  x.fillText(`${t.count} · ${t.formation}`,1154,75);
+  x.font=`700 11px ${FONT_SYS}`;
+  let tabW=0; Array.from("LINE-UP").forEach(ch=>tabW+=x.measureText(ch).width+3); tabW-=3;
+  rrPath(x,600-(tabW+40)/2,24,tabW+40,28,3);
+  const tg=x.createLinearGradient(0,24,0,52);
+  tg.addColorStop(0,"#66aa1d"); tg.addColorStop(1,"#3f7d12");
+  x.fillStyle=tg; x.fill();
+  x.fillStyle="#fff"; x.textBaseline="middle";
+  spacedText(x,"LINE-UP",600,38,3,"center");
+
+  /* 名单 */
+  x.fillStyle="rgba(255,255,255,.55)"; x.font=`600 10px ${FONT_MONO}`;
+  spacedText(x,"STARTING LINE-UP · 首发",201,175,2,"left");
+  const lead=showTm.lead*speed, step=showTm.step*speed, rowIn=showTm.rowIn*speed;
+  const active=now<lead?-1:Math.min(list.length-1,Math.floor((now-lead)/step));
+  const ROWX=198, ROWW=472, ROWY0=191, ROWH=30, GAP=3;
+  list.forEach((item,i)=>{
+    const st=lead+i*step;
+    if(now<st) return;
+    const pr=clamp01((now-st)/rowIn);
+    const yy=ROWY0+i*(ROWH+GAP)-13*(1-easeOutCubic(pr));
+    x.globalAlpha=pr;
+    x.textBaseline="middle";
+    if(i===active){
+      x.save();
+      x.shadowColor="rgba(0,0,0,.3)"; x.shadowBlur=10; x.shadowOffsetY=3;
+      rrPath(x,ROWX,yy,ROWW,ROWH,3); x.fillStyle="#fafcff"; x.fill();
+      x.restore();
+    }
+    const px=ROWX+11, py=yy+(ROWH-22)/2;
+    if(i!==active){
+      rrPath(x,px,py,44,22,2); x.fillStyle="#f7fbff"; x.fill();
+    }
+    x.fillStyle="#141d2a"; x.font=`700 13px ${FONT_MONO}`; x.textAlign="center";
+    x.fillText(item.p.num||"—",px+22,py+12);
+    x.textAlign="left"; x.font=`700 15.5px ${FONT_SYS}`;
+    x.fillStyle=i===active?"#141d2a":"#f6faf7";
+    x.fillText(item.p.name,px+44+11,yy+ROWH/2+1);
+    if(item.p.captain){
+      const cx=ROWX+ROWW-19, cy=yy+ROWH/2;
+      x.beginPath(); x.arc(cx,cy,8,0,Math.PI*2);
+      x.strokeStyle=i===active?"#141d2a":"rgba(255,255,255,.65)"; x.lineWidth=1; x.stroke();
+      x.fillStyle=i===active?"#141d2a":"#ffffff"; x.font=`700 9px ${FONT_MONO}`; x.textAlign="center";
+      x.fillText("C",cx,cy+1); x.textAlign="left";
+    }
+    x.globalAlpha=1;
+  });
+
+  /* 右侧媒体区 */
+  if(active>=0){
+    const st=lead+active*step;
+    const fp=clamp01((now-st)/showTm.fade);
+    if(active>0) drawShowMedia(x,list[active-1],1,0);
+    drawShowMedia(x,list[active],fp,10*(1-fp));
+  }
+
+  /* 水印 */
+  x.fillStyle="rgba(255,255,255,.42)"; x.font=`600 10px ${FONT_MONO}`;
+  x.textBaseline="middle";
+  spacedText(x,"SOCCERBOARD · 队员介绍",600,660,3,"center");
+}
+function exportShowVideo(){
+  if(showRec) return;
+  const t=cur(), list=showcaseList(t);
+  if(!list.length){ toast("还没有可展示的球员"); return; }
+  const mime=pickVideoMime();
+  const cv=document.createElement("canvas");
+  if(!mime||typeof cv.captureStream!=="function"){ toast("当前浏览器不支持视频录制"); return; }
+  cv.width=1920; cv.height=1080;
+  const x=cv.getContext("2d");
+  ensureImages(t).then(()=>{
+    const speed=showSlow;
+    const total=showTm.lead*speed+(Math.max(0,list.length-1))*showTm.step*speed
+      +showTm.rowIn*speed+showTm.fade+900;
+    paintShowFrame(x,t,list,0); // 首帧先铺好，避免视频开头闪白
+    let rec;
+    try{
+      rec=new MediaRecorder(cv.captureStream(30),{mimeType:mime,videoBitsPerSecond:12000000});
+    }catch(e){ toast("录制初始化失败，请重试"); return; }
+    const chunks=[];
+    showRec=rec;
+    rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    rec.onstop=()=>{
+      showRec=null;
+      const b=$("#btnShowExport"); if(b) b.disabled=false;
+      if(!chunks.length){ toast("录制未产生数据，请重试"); return; }
+      const ext=mime.indexOf("mp4")>-1?"mp4":"webm";
+      const base=fileName(t,ext).replace(/\.\w+$/,"");
+      download(base+"_队员展示."+ext,new Blob(chunks,{type:mime}));
+      toast("展示动画视频已导出");
+    };
+    const b=$("#btnShowExport"); if(b) b.disabled=true;
+    rec.start(100);
+    toast(`正在录制队员展示，约 ${Math.round(total/1000)} 秒，请勿切换页面`);
+    const t0=performance.now();
+    const step=now=>{
+      if(!showRec||showRec!==rec) return;
+      const el=Math.min(now-t0,total);
+      paintShowFrame(x,t,list,el);
+      if(el<total){ requestAnimationFrame(step); }
+      else{ setTimeout(()=>{ if(showRec===rec){ try{ rec.stop(); }catch(e){} } },120); }
+    };
+    requestAnimationFrame(step);
+  });
+}
+
+/* ================= 画面绘制（预览与导出共用，保证一致） ================= */
+function rr(x,px,py,w,h,r){
+  if(x.roundRect){ x.beginPath(); x.roundRect(px,py,w,h,r); return; }
+  const p=Math.min(r,w/2,h/2);
+  x.beginPath();
+  x.moveTo(px+p,py);
+  x.arcTo(px+w,py,px+w,py+h,p);
+  x.arcTo(px+w,py+h,px,py+h,p);
+  x.arcTo(px,py+h,px,py,p);
+  x.arcTo(px,py,px+w,py,p);
+  x.closePath();
+}
+/* 缓动函数 */
+const clamp01=v=>v<0?0:(v>1?1:v);
+const easeOutCubic=v=>1-Math.pow(1-v,3);
+const easeOutBack=v=>{const c1=1.70158,c3=c1+1;return 1+c3*Math.pow(v-1,3)+c1*Math.pow(v-1,2);};
+function paintCard(t,reveal){
+  /* reveal 为空时绘制完整静态画面；否则按各元素进度绘制动画帧 */
+  const rv=reveal||{slot:t.slots.map(()=>({b:1,n:1,p:1})),info:1,overall:1};
+  const horiz=ui.view==="h";
+  const W=horiz?1920:1080, H=horiz?1080:1920;
+  const c=document.createElement("canvas"); c.width=W; c.height=H;
+  const x=c.getContext("2d");
+
+  /* 背景 */
+  const bg=x.createLinearGradient(0,0,0,H);
+  bg.addColorStop(0,"#0d1714"); bg.addColorStop(1,"#070d0b");
+  x.fillStyle=bg; x.fillRect(0,0,W,H);
+
+  /* 球场几何 */
+  const padX=horiz?250:110;
+  const top=horiz?120:250;
+  const bot=horiz?200:370;
+  const pw=W-padX*2, ph=H-top-bot;
+  const min=Math.min(pw,ph);
+
+  /* 草皮与条纹 */
+  const gr=x.createLinearGradient(0,top,0,top+ph);
+  gr.addColorStop(0,"#1d7440"); gr.addColorStop(1,"#155a31");
+  x.fillStyle=gr; x.fillRect(padX,top,pw,ph);
+  x.fillStyle="rgba(255,255,255,.045)";
+  const bands=12,bh=ph/bands;
+  for(let i=0;i<bands;i+=2) x.fillRect(padX,top+i*bh,pw,bh);
+
+  /* 标线 */
+  const lw=Math.max(3,min*.008);
+  x.strokeStyle="rgba(255,255,255,.55)"; x.lineWidth=lw;
+  x.strokeRect(padX,top,pw,ph);
+  x.beginPath(); x.moveTo(padX,top+ph/2); x.lineTo(padX+pw,top+ph/2); x.stroke();
+  x.beginPath(); x.arc(padX+pw/2,top+ph/2,min*.085,0,Math.PI*2); x.stroke();
+  x.fillStyle="rgba(255,255,255,.6)";
+  x.beginPath(); x.arc(padX+pw/2,top+ph/2,lw*1.7,0,Math.PI*2); x.fill();
+
+  const cx=padX+pw/2;
+  const boxW=pw*.58, boxD=ph*.155, gW=pw*.30, gD=ph*.062;
+  [[top,1],[top+ph,-1]].forEach(pair=>{
+    const ey=pair[0],dir=pair[1];
+    x.strokeRect(cx-boxW/2, dir===1?ey:ey-boxD, boxW, boxD);
+    x.strokeRect(cx-gW/2, dir===1?ey:ey-gD, gW, gD);
+    const spotY=ey+dir*ph*.105;
+    x.beginPath(); x.arc(cx,spotY,lw*1.7,0,Math.PI*2); x.fill();
+    const r=min*.085, d=boxD-ph*.105;
+    const a=Math.asin(Math.min(1,d/r));
+    x.beginPath();
+    if(dir===1) x.arc(cx,spotY,r,a,Math.PI-a);
+    else x.arc(cx,spotY,r,Math.PI+a,Math.PI*2-a);
+    x.stroke();
+  });
+
+  /* 球员 */
+  const r=horiz?46:54;
+  t.slots.forEach((s,i)=>{
+    const p=s.pid!=null?playerById(t,s.pid):null;
+    const px=padX+s.x/100*pw, py=top+s.y/100*ph;
+    const rl=rv.slot[i]||{b:1,n:1,p:1};
+
+    /* 圆泡 + 队长标：缩放弹出（空槽位保持静态虚线） */
+    if(!p || rl.b>0){
+      x.save();
+      x.globalAlpha=p?clamp01(rl.b):1;
+      if(p){
+        const bs=Math.max(.001,easeOutBack(clamp01(rl.b)));
+        x.translate(px,py); x.scale(bs,bs); x.translate(-px,-py);
+      }
+      x.beginPath(); x.arc(px,py,r,0,Math.PI*2);
+      if(p&&ui.showPhoto&&p.photo&&p.img&&p.img.complete&&p.img.naturalWidth){
+        x.fillStyle="#0a0f0d"; x.fill();
+        x.save(); x.clip();
+        const iw=p.img.naturalWidth, ih=p.img.naturalHeight, side=Math.min(iw,ih);
+        x.drawImage(p.img,(iw-side)/2,(ih-side)/2,side,side,px-r,py-r,r*2,r*2);
+        x.restore();
+        x.lineWidth=Math.max(3,r*.09); x.strokeStyle="rgba(255,255,255,.92)"; x.stroke();
+      }else if(p){
+        x.fillStyle=t.color; x.fill();
+        x.lineWidth=Math.max(3,r*.09); x.strokeStyle="rgba(255,255,255,.92)"; x.stroke();
+        x.fillStyle="#fff";
+        x.font=`800 ${Math.round(r*.92)}px ${FONT_MONO}`;
+        x.textAlign="center"; x.textBaseline="middle";
+        x.fillText(String(p.num||"–"),px,py+r*.05);
+      }else{
+        x.setLineDash([r*.3,r*.24]);
+        x.lineWidth=3.5; x.strokeStyle="rgba(255,255,255,.55)"; x.stroke();
+        x.setLineDash([]);
+      }
+      if(p&&p.captain){
+        const bx=px+r*.74, by=py-r*.74, br=r*.34;
+        x.beginPath(); x.arc(bx,by,br,0,Math.PI*2);
+        x.fillStyle="#f2c94c"; x.fill();
+        x.lineWidth=2.5; x.strokeStyle="#231c00"; x.stroke();
+        x.fillStyle="#231c00";
+        x.font=`800 ${Math.round(br*1.05)}px ${FONT_MONO}`;
+        x.textAlign="center"; x.textBaseline="middle";
+        x.fillText("C",bx,by+br*.06);
+      }
+      x.restore();
+    }
+
+    /* 姓名条：上浮淡入 */
+    let posY=py+r+10;
+    if(p&&ui.showName&&rl.n>0){
+      const np=easeOutCubic(clamp01(rl.n));
+      x.save();
+      x.globalAlpha=np;
+      const label=p.name.length>7?p.name.slice(0,7)+"…":p.name;
+      x.font=`600 ${Math.round(r*.5)}px ${FONT_SYS}`;
+      x.textAlign="center"; x.textBaseline="middle";
+      const tw=x.measureText(label).width;
+      const rh=r*.72;
+      const ny=posY+(1-np)*18;
+      x.fillStyle="rgba(7,18,12,.86)";
+      rr(x,px-tw/2-10,ny,tw+20,rh,rh*.32); x.fill();
+      x.fillStyle="#fff";
+      x.fillText(label,px,ny+rh/2+1);
+      x.restore();
+      posY+=rh+8;
+    }
+
+    /* 位置缩写：淡入 */
+    if(rl.p>0){
+      const pp=easeOutCubic(clamp01(rl.p));
+      x.save();
+      x.globalAlpha=pp;
+      x.fillStyle="rgba(233,243,237,.9)";
+      x.font=`600 ${Math.round(r*.4)}px ${FONT_MONO}`;
+      x.textAlign="center"; x.textBaseline="top";
+      x.fillText(s.pos,px,posY+(1-pp)*8);
+      x.restore();
+    }
+  });
+
+  /* 信息条：左侧滑入淡入 */
+  const bandH=horiz?170:290;
+  x.save();
+  x.globalAlpha=clamp01(rv.info);
+  const ip=easeOutCubic(clamp01(rv.info));
+  x.translate((1-ip)*-36,0);
+  const lg=x.createLinearGradient(0,H-bandH*1.5,0,H);
+  lg.addColorStop(0,"rgba(4,10,7,0)");
+  lg.addColorStop(.42,"rgba(4,10,7,.9)");
+  lg.addColorStop(1,"rgba(4,10,7,.97)");
+  x.fillStyle=lg; x.fillRect(0,H-bandH*1.5,W,bandH*1.5);
+  const inPad=horiz?padX:110;
+  x.fillStyle=t.color;
+  rr(x,inPad,H-bandH*.74,14,bandH*.46,7); x.fill();
+  x.textAlign="left"; x.textBaseline="alphabetic";
+  x.fillStyle="#fff";
+  x.font=`800 ${Math.round(bandH*.30)}px ${FONT_SYS}`;
+  x.fillText(t.name.trim()||"未命名球队", inPad+42, H-bandH*.40);
+  x.fillStyle="rgba(178,203,188,.95)";
+  x.font=`600 ${Math.round(bandH*.135)}px ${FONT_MONO}`;
+  x.fillText(`${t.code.trim()|| "---"}   ·   ${t.count} 人制   ·   ${t.formation}   ·   ${t.side==="home"?"主队 HOME":"客队 AWAY"}`, inPad+42, H-bandH*.16);
+  x.textAlign="right"; x.fillStyle="#f2c94c";
+  x.font=`800 ${Math.round(bandH*.155)}px ${FONT_MONO}`;
+  x.fillText("PRE-MATCH LINEUP", W-inPad, H-bandH*.30);
+  x.restore();
+
+  /* 整体入场：自黑场淡入 */
+  if(rv.overall<1){
+    x.fillStyle=`rgba(5,8,7,${(1-clamp01(rv.overall)).toFixed(3)})`;
+    x.fillRect(0,0,W,H);
+  }
+  return c;
+}
+function paintPreview(){
+  cancelAnim();
+  const cv=$("#previewCanvas"); if(!cv) return;
+  const card=paintCard(cur());
+  cv.width=card.width; cv.height=card.height;
+  cv.getContext("2d").drawImage(card,0,0);
+  cv.classList.toggle("vertical",ui.view==="v");
+}
+function ensureImages(t){
+  return Promise.all(
+    t.players.filter(p=>p.photo&&(!p.img||!p.img.complete)).map(p=>new Promise(res=>{
+      if(!p.img) p.img=new Image();
+      p.img.onload=p.img.onerror=()=>res();
+      p.img.src=p.photo;
+      if(p.img.complete) res();
+    }))
+  );
+}
+
+/* ================= 播出动画：球员依次入场 ================= */
+/* 时间轴（毫秒）：黑场淡入 → 信息条滑入 → 球员按门将→后卫→中场→前锋逐个入场
+   每名球员：圆泡缩放弹出 → 姓名上浮淡入 → 位置缩写淡入 */
+const ANIM={
+  fade:300, info:380, lead:280, stagger:240,
+  bubble:420, nameDelay:170, name:320, posDelay:110, pos:260, tail:350
+};
+let animState=null;
+function animTotalMs(n){
+  return ANIM.lead+(Math.max(0,n-1))*ANIM.stagger
+    +ANIM.bubble+ANIM.posDelay+ANIM.pos+ANIM.tail;
+}
+function buildReveal(t,el){
+  const order=t.slots.map((s,i)=>({i,y:s.y})).sort((a,b)=>b.y-a.y);
+  const slot=t.slots.map(()=>({b:0,n:0,p:0}));
+  order.forEach((o,k)=>{
+    const st=ANIM.lead+k*ANIM.stagger;
+    slot[o.i].b=clamp01((el-st)/ANIM.bubble);
+    slot[o.i].n=clamp01((el-st-ANIM.nameDelay)/ANIM.name);
+    slot[o.i].p=clamp01((el-st-ANIM.bubble-ANIM.posDelay)/ANIM.pos);
+  });
+  return {slot, info:clamp01(el/ANIM.info), overall:clamp01(el/ANIM.fade)};
+}
+function cancelAnim(){
+  if(animState){ cancelAnimationFrame(animState.raf); animState=null; }
+  /* 录制中的动画被任何操作打断时，同步结束录制，避免录到意外画面 */
+  if(recRef){ const r=recRef; recRef=null; try{ r.stop(); }catch(e){} }
+}
+function playAnim(){
+  const cv=$("#previewCanvas"); if(!cv) return;
+  const t=cur();
+  if(!t.slots.some(s=>s.pid!=null)){
+    toast("还没有落位球员，请先完成站位编排");
+    return;
+  }
+  cancelAnim();
+  ensureImages(t).then(()=>{
+    if(animState!==null || $("#previewCanvas")!==cv) return;
+    const total=animTotalMs(t.slots.length);
+    const st={t0:performance.now(),raf:0};
+    animState=st;
+    const step=now=>{
+      if(animState!==st) return;
+      const el=now-st.t0;
+      const card=paintCard(t,buildReveal(t,el));
+      if(cv.width!==card.width){ cv.width=card.width; cv.height=card.height; }
+      cv.getContext("2d").drawImage(card,0,0);
+      if(el<total){ st.raf=requestAnimationFrame(step); }
+      else{ animState=null; paintPreview(); }
+    };
+    st.raf=requestAnimationFrame(step);
+  });
+}
+
+/* ================= 动画视频导出（MP4 / WebM，浏览器原生 MediaRecorder） ================= */
+function pickVideoMime(){
+  if(typeof MediaRecorder==="undefined") return null;
+  const cand=["video/mp4;codecs=avc1.42E01E","video/webm;codecs=vp9","video/webm;codecs=vp8","video/webm"];
+  for(const m of cand){
+    try{ if(MediaRecorder.isTypeSupported(m)) return m; }catch(e){}
+  }
+  return null;
+}
+let recRef=null;
+function exportAnimVideo(){
+  if(recRef) return;
+  const t=cur();
+  if(!t.slots.some(s=>s.pid!=null)){
+    toast("还没有落位球员，请先完成站位编排");
+    return;
+  }
+  const cv=$("#previewCanvas"); if(!cv) return;
+  const mime=pickVideoMime();
+  if(!mime||typeof cv.captureStream!=="function"){
+    toast("当前浏览器不支持动画录制，请改用导出 PNG");
+    return;
+  }
+  cancelAnim();
+  ensureImages(t).then(()=>{
+    if($("#previewCanvas")!==cv) return;
+    const total=animTotalMs(t.slots.length)+600;
+    /* 先铺好黑场首帧，避免视频开头闪现完整画面 */
+    const card0=paintCard(t,buildReveal(t,0));
+    cv.width=card0.width; cv.height=card0.height;
+    cv.getContext("2d").drawImage(card0,0,0);
+    let rec;
+    try{
+      const stream=cv.captureStream(60);
+      rec=new MediaRecorder(stream,{mimeType:mime,videoBitsPerSecond:12000000});
+    }catch(e){
+      toast("录制初始化失败，请改用导出 PNG");
+      return;
+    }
+    const chunks=[];
+    recRef=rec;
+    rec.ondataavailable=e=>{ if(e.data&&e.data.size) chunks.push(e.data); };
+    rec.onstop=()=>{
+      recRef=null;
+      const b=$("#btnExportAnim"); if(b) b.disabled=!pickVideoMime();
+      if(chunks.length){
+        const ext=mime.indexOf("mp4")>-1?"mp4":"webm";
+        download(fileName(t,ext),new Blob(chunks,{type:mime}));
+        t.exportedAt=Date.now(); t.dirty=false;
+        queueSave(); renderCast(t);
+        toast("动画视频已导出");
+      }else{
+        toast("录制未产生数据，请重试");
+      }
+    };
+    const btn=$("#btnExportAnim"); if(btn) btn.disabled=true;
+    rec.start();
+    toast(`正在录制动画，约 ${(total/1000).toFixed(1)} 秒，请勿切换页面`);
+    const st={t0:performance.now(),raf:0};
+    animState=st;
+    const step=now=>{
+      if(animState!==st) return;
+      const el=now-st.t0;
+      const card=paintCard(t,buildReveal(t,el));
+      if(cv.width!==card.width){ cv.width=card.width; cv.height=card.height; }
+      cv.getContext("2d").drawImage(card,0,0);
+      if(el<total){ st.raf=requestAnimationFrame(step); }
+      else{
+        animState=null;
+        try{ rec.stop(); }catch(e){}
+      }
+    };
+    st.raf=requestAnimationFrame(step);
+  });
+}
+
+/* ================= 交互：槽位 / 替补席 ================= */
+function onSlotClick(t,i){
+  const s=t.slots[i];
+  if(selSlot===-1){ selSlot=i; renderBoard(t); return; }
+  if(selSlot===i){ selSlot=-1; renderBoard(t); return; }
+  const a=t.slots[selSlot];
+  if(a.pid!=null&&s.pid!=null){
+    const tmp=a.pid; a.pid=s.pid; s.pid=tmp;
+    toast("已交换两名球员的位置");
+  }else if(a.pid!=null&&s.pid==null){
+    s.pid=a.pid; a.pid=null;
+  }else if(a.pid==null&&s.pid!=null){
+    a.pid=s.pid; s.pid=null;
+  }else{
+    selSlot=i; renderBoard(t); return;
+  }
+  selSlot=-1;
+  touch(t); queueSave(); renderBoard(t);
+}
+function placeFromBench(t,id){
+  if(selSlot===-1){ toast("请先点击一个槽位，再选择球员"); return; }
+  const slot=t.slots[selSlot];
+  t.slots.forEach(x=>{ if(x.pid===id) x.pid=null; });
+  const out=slot.pid;
+  slot.pid=id;
+  selSlot=-1;
+  touch(t); queueSave(); renderBoard(t);
+  if(out!=null){
+    const op=playerById(t,out);
+    toast(`已用 ${playerById(t,id).name} 替换 ${op?op.name:"原球员"}`);
+  }
+}
+function autoFill(t){
+  const assigned=new Set(t.slots.map(s=>s.pid).filter(v=>v!=null));
+  const free=filledPlayers(t);
+  /* 第一轮：主位置与槽位位置完全一致 */
+  t.slots.forEach(s=>{
+    if(s.pid!=null) return;
+    const c=free.find(p=>!assigned.has(p.id)&&p.pos===s.pos);
+    if(c){ s.pid=c.id; assigned.add(c.id); }
+  });
+  /* 第二轮：门将只进 GK，其余球员优先不进 GK */
+  t.slots.forEach(s=>{
+    if(s.pid!=null) return;
+    const c=free.find(p=>!assigned.has(p.id)&&compat(s.pos,p.pos));
+    if(c){ s.pid=c.id; assigned.add(c.id); }
+  });
+  /* 第三轮：兜底填满 */
+  t.slots.forEach(s=>{
+    if(s.pid!=null) return;
+    const c=free.find(p=>!assigned.has(p.id));
+    if(c){ s.pid=c.id; assigned.add(c.id); }
+  });
+  selSlot=-1;
+  touch(t); queueSave(); renderBoard(t);
+  toast("已按位置优先自动落位，可继续手动调整");
+}
+function clearSlots(t){
+  t.slots.forEach(s=>{s.pid=null;});
+  selSlot=-1;
+  touch(t); queueSave(); renderBoard(t);
+  toast("已清空全部落位");
+}
+
+/* ================= 交互：名单 ================= */
+function toggleCaptain(btn){
+  const row=btn.closest(".prow"); const t=cur();
+  const p=playerById(t,+row.dataset.pid); if(!p) return;
+  const next=!p.captain;
+  t.players.forEach(x=>{x.captain=false;});
+  p.captain=next;
+  touch(t); queueSave();
+  renderRoster(t);
+  toast(next?`${p.name||"该球员"} 已设为队长`:"已取消队长标记");
+}
+function deletePlayer(btn){
+  const row=btn.closest(".prow"); const t=cur();
+  const p=playerById(t,+row.dataset.pid); if(!p) return;
+  t.slots.forEach(s=>{ if(s.pid===p.id) s.pid=null; });
+  t.players=t.players.filter(x=>x.id!==p.id);
+  touch(t); queueSave();
+  renderRoster(t);
+  toast("已删除该球员；若其已落位，槽位同时清空");
+}
+function addRow(){
+  const t=cur();
+  t.players.push(emptyPlayer(t));
+  touch(t); queueSave();
+  renderRoster(t);
+}
+function compressPhoto(file){
+  return new Promise((resolve,reject)=>{
+    if(!file||!file.type||!file.type.startsWith("image/")){ reject("type"); return; }
+    const fr=new FileReader();
+    fr.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        try{
+          const S=512, side=Math.min(img.naturalWidth,img.naturalHeight);
+          const cv=document.createElement("canvas"); cv.width=S; cv.height=S;
+          const cx=cv.getContext("2d");
+          cx.fillStyle="#fff"; cx.fillRect(0,0,S,S);
+          cx.drawImage(img,(img.naturalWidth-side)/2,(img.naturalHeight-side)/2,side,side,0,0,S,S);
+          resolve(cv.toDataURL("image/jpeg",.85));
+        }catch(e){ reject("err"); }
+      };
+      img.onerror=()=>reject("err");
+      img.src=fr.result;
+    };
+    fr.onerror=()=>reject("err");
+    fr.readAsDataURL(file);
+  });
+}
+function handlePhoto(p,input){
+  const f=input.files&&input.files[0];
+  if(!f) return;
+  compressPhoto(f).then(data=>{
+    p.photo=data;
+    p.img=new Image(); p.img.src=data;
+    const box=input.closest(".ph");
+    if(box){
+      box.innerHTML=`<img src="${data}" alt=""><input type="file" accept="image/*" aria-label="替换照片">`;
+      box.title="替换照片";
+    }
+    touch(cur()); queueSave();
+    toast("照片已更新（已压缩为 512×512 JPEG）");
+  }).catch(()=>{ toast("该文件无法作为照片使用"); input.value=""; });
+}
+
+/* ================= 步骤与队伍切换 ================= */
+function goStep(n){
+  n=Math.min(5,Math.max(1,n));
+  if(n>=3){
+    const v=validateTeam(cur());
+    if(!v.ok){
+      ui.step=2; showRosterError=true; selSlot=-1;
+      renderAll(); queueSave();
+      toast(v.errors[0]);
+      return;
+    }
+  }
+  if(n===2) showRosterError=false;
+  ui.step=n; selSlot=-1;
+  renderAll(); queueSave();
+}
+function virgin(t){
+  return !t.name.trim() && !t.players.some(isFilled) && !(t.slots||[]).some(s=>s.pid!=null);
+}
+function switchTeam(side){
+  if(side!=="home"&&side!=="away") return;
+  ui.side=side; selSlot=-1;
+  const t=cur();
+  if(virgin(t)&&ui.step>1) ui.step=1;
+  renderAll();
+}
+
+/* ================= 导出 ================= */
+function download(name,blob){
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+}
+function fileName(t,ext){
+  const base=(t.code.trim()||t.name.trim()||"team").replace(/[^\w\u4e00-\u9fa5-]+/g,"");
+  return `${base}_${t.count}人制_${t.formation}.${ext}`;
+}
+function hex2rgb(h){
+  const m=/^#?([0-9a-f]{6})$/i.exec(h||"");
+  if(!m) return [0,0,0];
+  const n=parseInt(m[1],16);
+  return [(n>>16)&255,(n>>8)&255,n&255];
+}
+function colorClose(a,b){
+  const pa=hex2rgb(a),pb=hex2rgb(b);
+  return Math.hypot(pa[0]-pb[0],pa[1]-pb[1],pa[2]-pb[2])<70;
+}
+async function exportPng(){
+  const t=cur();
+  const v=validateTeam(t);
+  const missing=t.slots.filter(s=>s.pid==null).length;
+  if(!v.ok){ toast(v.errors[0]); return; }
+  if(missing){ toast(`还有 ${missing} 个位置未安排球员，无法导出`); return; }
+  await ensureImages(t);
+  const other=teams[t.side==="home"?"away":"home"];
+  if(t.name.trim()&&other.name.trim()&&colorClose(t.color,other.color)){
+    toast("提醒：主客两队主色接近，播出时请注意区分");
+  }
+  try{
+    const card=paintCard(t);
+    card.toBlob(b=>{
+      if(!b){ toast("导出失败，可改用导出名单 JSON"); return; }
+      download(fileName(t,"png"),b);
+      t.exportedAt=Date.now(); t.dirty=false;
+      queueSave(); renderCast(t);
+      toast("站位图已导出");
+    },"image/png");
+  }catch(e){
+    toast("导出失败，可改用导出名单 JSON");
+  }
+}
+function buildJson(t){
+  return {
+    app:"SOCCERBOARD", version:1,
+    exportedAt:new Date().toISOString(),
+    team:{ side:t.side==="home"?"home":"away", name:t.name.trim(), code:t.code.trim()||null, color:t.color },
+    match:{ playersOnPitch:t.count },
+    formation:t.formation,
+    slots:t.slots.map(s=>{
+      const p=s.pid!=null?playerById(t,s.pid):null;
+      return {
+        pos:s.pos, x:s.x, y:s.y,
+        player:p?{num:+p.num||null,name:p.name.trim(),position:p.pos||null,captain:!!p.captain}:null
+      };
+    }),
+    squad:filledPlayers(t).map(p=>({
+      num:+p.num||null, name:p.name.trim(), position:p.pos||null, captain:!!p.captain,
+      hasPhoto:!!p.photo,
+      onPitch:t.slots.some(s=>s.pid===p.id)
+    }))
+  };
+}
+function exportJson(){
+  const t=cur();
+  const v=validateTeam(t);
+  const missing=t.slots.filter(s=>s.pid==null).length;
+  if(!v.ok){ toast(v.errors[0]); return; }
+  if(missing){ toast(`还有 ${missing} 个位置未安排球员，无法导出`); return; }
+  try{
+    const blob=new Blob([JSON.stringify(buildJson(t),null,2)],{type:"application/json"});
+    download(fileName(t,"json"),blob);
+    toast("名单 JSON 已导出（不含照片二进制）");
+  }catch(e){
+    toast("JSON 导出失败");
+  }
+}
+
+/* ================= 测试数据一键填充 ================= */
+function shade(hex,pct){
+  const m=/^#?([0-9a-f]{6})$/i.exec(hex||"");
+  if(!m) return "#888888";
+  const n=parseInt(m[1],16);
+  const f=v=>Math.max(0,Math.min(255,Math.round(v*(1+pct/100))));
+  const r=f((n>>16)&255), g=f((n>>8)&255), b=f(n&255);
+  return "#"+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);
+}
+/* 程序生成球员头像：扁平插画风证件照（肤色/发型/胡须/表情按姓名种子稳定变化，离线可用） */
+function seedRand(seed){
+  let h=2166136261;
+  for(let i=0;i<seed.length;i++){ h^=seed.charCodeAt(i); h=Math.imul(h,16777619); }
+  return function(){
+    h+=0x6d2b79f5;
+    let t=h;
+    t=Math.imul(t^t>>>15,t|1);
+    t^=t+Math.imul(t^t>>>7,t|61);
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+function makeAvatar(color,seed,num){
+  const R=seedRand(String(seed||"x"));
+  const pick=a=>a[Math.floor(R()*a.length)];
+  const S=512, c=document.createElement("canvas"); c.width=S; c.height=S;
+  const x=c.getContext("2d");
+  const skin=pick(["#f2c9a4","#eab88a","#dd9f70","#c98a5a","#a86a3f","#8d5524"]);
+  const hairC=pick(["#161310","#241d16","#3a2a1a","#0e0c0a"]);
+  const style=Math.floor(R()*4);   /* 0 板寸 1 短发 2 竖立 3 卷发 */
+  const beard=R()<0.32;
+  const smile=R()<0.72;
+
+  /* 背景：球队色柔和渐变 */
+  const bg=x.createRadialGradient(S*.42,S*.34,S*.08,S*.5,S*.52,S*.78);
+  bg.addColorStop(0,shade(color,46));
+  bg.addColorStop(1,shade(color,-20));
+  x.fillStyle=bg; x.fillRect(0,0,S,S);
+
+  /* 脖子 */
+  x.fillStyle=shade(skin,-16);
+  x.fillRect(S*.435,S*.55,S*.13,S*.22);
+
+  /* 球衣肩部 + 领口 + 号码 */
+  x.fillStyle=color;
+  x.beginPath();
+  x.moveTo(S*.10,S);
+  x.quadraticCurveTo(S*.16,S*.72,S*.335,S*.705);
+  x.lineTo(S*.665,S*.705);
+  x.quadraticCurveTo(S*.84,S*.72,S*.90,S);
+  x.closePath(); x.fill();
+  x.fillStyle=shade(color,-28);
+  x.beginPath();
+  x.moveTo(S*.45,S*.705); x.lineTo(S*.5,S*.79); x.lineTo(S*.55,S*.705);
+  x.closePath(); x.fill();
+  if(num){
+    x.fillStyle="rgba(255,255,255,.92)";
+    x.font=`800 ${Math.round(S*.11)}px ${FONT_MONO}`;
+    x.textAlign="center"; x.textBaseline="middle";
+    x.fillText(String(num),S*.5,S*.895);
+  }
+
+  /* 头与耳朵 */
+  x.fillStyle=skin;
+  x.beginPath(); x.ellipse(S*.5,S*.42,S*.205,S*.25,0,0,Math.PI*2); x.fill();
+  x.beginPath(); x.ellipse(S*.293,S*.44,S*.034,S*.055,0,0,Math.PI*2); x.fill();
+  x.beginPath(); x.ellipse(S*.707,S*.44,S*.034,S*.055,0,0,Math.PI*2); x.fill();
+
+  /* 头发 */
+  x.fillStyle=hairC;
+  const capY=S*.30;
+  if(style===0){
+    x.beginPath(); x.ellipse(S*.5,capY,S*.196,S*.128,0,Math.PI,Math.PI*2); x.closePath(); x.fill();
+  }else if(style===1){
+    x.beginPath(); x.ellipse(S*.5,capY,S*.208,S*.158,0,Math.PI,Math.PI*2); x.closePath(); x.fill();
+    x.fillRect(S*.30,capY,S*.02,S*.075);
+    x.fillRect(S*.68,capY,S*.02,S*.075);
+  }else if(style===2){
+    x.beginPath(); x.ellipse(S*.5,capY,S*.20,S*.15,0,Math.PI,Math.PI*2); x.closePath(); x.fill();
+    for(let i=0;i<5;i++){
+      const bx=S*.315+i*S*.075;
+      x.beginPath();
+      x.moveTo(bx,capY+S*.01);
+      x.lineTo(bx+S*.037,S*.185);
+      x.lineTo(bx+S*.075,capY+S*.01);
+      x.closePath(); x.fill();
+    }
+  }else{
+    x.beginPath(); x.ellipse(S*.5,capY,S*.205,S*.145,0,Math.PI,Math.PI*2); x.closePath(); x.fill();
+    for(let i=0;i<6;i++){
+      const t=i/5;
+      x.beginPath();
+      x.arc(S*.325+t*S*.35,S*.288-Math.sin(Math.PI*t)*S*.055,S*.052,0,Math.PI*2);
+      x.fill();
+    }
+  }
+
+  /* 眉毛、眼睛、鼻子 */
+  x.strokeStyle="#2a221b"; x.lineWidth=S*.013; x.lineCap="round";
+  x.beginPath();
+  x.moveTo(S*.395,S*.383); x.quadraticCurveTo(S*.44,S*.368,S*.485,S*.383);
+  x.moveTo(S*.515,S*.383); x.quadraticCurveTo(S*.56,S*.368,S*.605,S*.383);
+  x.stroke();
+  x.fillStyle="#241c16";
+  x.beginPath(); x.ellipse(S*.44,S*.418,S*.021,S*.029,0,0,Math.PI*2); x.fill();
+  x.beginPath(); x.ellipse(S*.56,S*.418,S*.021,S*.029,0,0,Math.PI*2); x.fill();
+  x.strokeStyle=shade(skin,-26); x.lineWidth=S*.011;
+  x.beginPath(); x.moveTo(S*.5,S*.42); x.quadraticCurveTo(S*.512,S*.452,S*.494,S*.462); x.stroke();
+
+  /* 胡须（嘴之前画，保持嘴清晰） */
+  if(beard){
+    x.fillStyle="rgba(30,24,18,.42)";
+    x.beginPath();
+    x.ellipse(S*.5,S*.49,S*.158,S*.132,0,Math.PI*.14,Math.PI*.86);
+    x.closePath(); x.fill();
+  }
+  x.strokeStyle="#7c4a3a"; x.lineWidth=S*.014;
+  x.beginPath();
+  if(smile){ x.moveTo(S*.452,S*.508); x.quadraticCurveTo(S*.5,S*.545,S*.548,S*.508); }
+  else{ x.moveTo(S*.462,S*.52); x.lineTo(S*.538,S*.52); }
+  x.stroke();
+
+  return c.toDataURL("image/jpeg",.85);
+}
+const DEMO={
+  home:{
+    name:"东川联", code:"DCL", color:"#c8102e", formation:"4-4-2", captain:1,
+    players:[
+      ["1","陆云飞","GK"],["3","沈励行","LB"],["5","程亦凡","LCB"],["6","韩景明","RCB"],["17","周天佑","RB"],
+      ["9","姜承宇","LM"],["8","宋子谦","LCM"],["10","顾北辰","RCM"],["21","白书豪","RM"],
+      ["11","方远扬","LST"],["29","秦朗","RST"],
+      ["12","邵云帆","GK"],["7","柳青原","CM"]
+    ]
+  },
+  away:{
+    name:"北岭竞技", code:"BLJ", color:"#2563eb", formation:"4-3-3", captain:6,
+    players:[
+      ["1","罗启文","GK"],["4","聂海川","LB"],["3","岳鹏程","LCB"],["5","魏子豪","RCB"],["2","段景瑞","RB"],
+      ["8","洛清河","LCM"],["6","齐铭远","CM"],["10","祁连峰","RCM"],
+      ["7","穆晓风","LW"],["9","雷啸","ST"],["23","闻人越","RW"],
+      ["18","石开阳","GK"],["16","岑放","CAM"]
+    ]
+  }
+};
+let demoArmed=0;
+function fillDemoData(){
+  const hasData=!virgin(teams.home)||!virgin(teams.away);
+  if(hasData && Date.now()-demoArmed>3000){
+    demoArmed=Date.now();
+    toast("将覆盖当前两队全部档案：3 秒内再次点击「测试数据」确认");
+    return;
+  }
+  demoArmed=0;
+  ["home","away"].forEach(side=>{
+    const d=DEMO[side], t=teams[side];
+    t.name=d.name; t.code=d.code; t.color=d.color;
+    t.count=11; t.formation=d.formation;
+    t.seq=1; t.exportedAt=null; t.dirty=false;
+    t.players=d.players.map((row,i)=>{
+      const p={id:t.seq++, num:row[0], name:row[1], pos:row[2], captain:i===d.captain, photo:null, img:null};
+      if(i<11){
+        p.photo=makeAvatar(d.color,row[1],row[0]);
+        p.img=new Image(); p.img.src=p.photo;
+      }
+      return p;
+    });
+    t.slots=slotsFor(t);
+    t.slots.forEach((s,i)=>{ s.pid=t.players[i].id; });
+  });
+  selSlot=-1; showRosterError=false;
+  ui.step=4;
+  renderAll(); queueSave();
+  toast("测试数据已填充：主客两队 11 人制已全部落位（替补 2 人无照片）");
+}
+
+/* ================= 事件绑定 ================= */
+document.addEventListener("click",e=>{
+  if(e.target.closest("#btnDemoData")){ fillDemoData(); return; }
+  const seg=e.target.closest("#teamSeg button");
+  if(seg){ switchTeam(seg.dataset.side); return; }
+  const st=e.target.closest("#stepNav .step");
+  if(st){ goStep(+st.dataset.step); return; }
+  const nx=e.target.closest("[data-next]");
+  if(nx){ goStep(+nx.dataset.next); return; }
+  const pv=e.target.closest("[data-prev]");
+  if(pv){ goStep(+pv.dataset.prev); return; }
+  const pill=e.target.closest("#countSet .pill");
+  if(pill){ setCountAll(+pill.dataset.count); return; }
+  const cap=e.target.closest("#rosterList .cap");
+  if(cap){ toggleCaptain(cap); return; }
+  const del=e.target.closest("#rosterList .del");
+  if(del){ deletePlayer(del); return; }
+  if(e.target.closest("#btnAddSub")){ addRow(); return; }
+  if(e.target.closest("#btnToBoard")){
+    const v=validateTeam(cur());
+    if(!v.ok){ showRosterError=true; renderRoster(cur()); toast(v.errors[0]); return; }
+    showRosterError=false; goStep(3); return;
+  }
+  if(e.target.closest("#btnAutoFill")){ autoFill(cur()); return; }
+  if(e.target.closest("#btnClearSlots")){ clearSlots(cur()); return; }
+  if(e.target.closest("#btnPlayAnim")){ playAnim(); return; }
+  const vs=e.target.closest("#viewSeg button");
+  if(vs){
+    ui.view=vs.dataset.view;
+    $$("#viewSeg button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===ui.view)));
+    const cv=$("#previewCanvas"); if(cv) cv.classList.toggle("vertical",ui.view==="v");
+    paintPreview(); queueSave(); return;
+  }
+  const tg=e.target.closest(".toggle");
+  if(tg){
+    const k=tg.dataset.toggle;
+    ui[k]=!ui[k];
+    tg.setAttribute("aria-pressed",String(ui[k]));
+    paintPreview(); queueSave(); return;
+  }
+  if(e.target.closest("#btnExportPng")){ exportPng(); return; }
+  if(e.target.closest("#btnExportAnim")){ exportAnimVideo(); return; }
+  if(e.target.closest("#btnExportJson")){ exportJson(); return; }
+  const srow=e.target.closest("#showList .srow");
+  if(srow&&srow.dataset.show!=null){
+    clearTimeout(show.timer); show.playing=false;
+    $$("#showList .srow").forEach(r=>r.classList.remove("hide"));
+    setShowActive(+srow.dataset.show); return;
+  }
+  if(e.target.closest("#btnShowPlay")){ playShow(); return; }
+  if(e.target.closest("#btnShowReset")){ resetShow(); return; }
+  if(e.target.closest("#btnShowExport")){ exportShowVideo(); return; }
+  if(e.target.closest("#btnVideoRm")){ removeShowVideo(); return; }
+  const slot=e.target.closest("#pitch .slot");
+  if(slot){ onSlotClick(cur(),+slot.dataset.slot); return; }
+  const bench=e.target.closest("[data-bench]");
+  if(bench){ placeFromBench(cur(),+bench.dataset.bench); return; }
+});
+
+document.addEventListener("input",e=>{
+  const row=e.target.closest("#rosterList .prow");
+  if(row){
+    const t=cur();
+    const p=playerById(t,+row.dataset.pid); if(!p) return;
+    if(e.target.classList.contains("in-num")){
+      p.num=e.target.value.replace(/\D/g,"").slice(0,2);
+      e.target.value=p.num;
+    }else if(e.target.classList.contains("in-name")){
+      p.name=e.target.value;
+    }else{ return; }
+    row.classList.remove("bad");
+    touch(t); updateRosterMeta(); queueSave();
+    return;
+  }
+  if(e.target.id==="f-name"){
+    cur().name=e.target.value;
+    renderTop(); touch(cur()); queueSave(); return;
+  }
+  if(e.target.id==="f-code"){
+    cur().code=e.target.value.toUpperCase().slice(0,4);
+    e.target.value=cur().code;
+    touch(cur()); queueSave(); return;
+  }
+});
+
+document.addEventListener("change",e=>{
+  if(e.target.id==="videoFile"){
+    const item=show.list[show.i];
+    const f=e.target.files&&e.target.files[0];
+    e.target.value="";
+    if(!item||!f) return;
+    if(f.size>40*1024*1024){ toast("视频过大，请控制在 40 MB 以内"); return; }
+    const p=item.p, idx=Math.max(0,show.i);
+    idbSet("v:"+p.id,f).then(()=>{
+      const old=vidCache.get(p.id); if(old) URL.revokeObjectURL(old);
+      vidCache.set(p.id,URL.createObjectURL(f));
+      p.video=true; touch(cur()); queueSave();
+      renderShowcase(cur()); setShowActive(idx);
+      toast("视频已保存，右侧已切换为视频展示");
+    }).catch(()=>toast("视频保存失败：当前浏览器不支持本地数据库"));
+    return;
+  }
+  const row=e.target.closest("#rosterList .prow");
+  if(row){
+    const t=cur();
+    const p=playerById(t,+row.dataset.pid); if(!p) return;
+    if(e.target.classList.contains("in-pos")){
+      p.pos=e.target.value;
+      touch(t); queueSave();
+    }else if(e.target.matches("input[type=file]")){
+      handlePhoto(p,e.target);
+    }
+    return;
+  }
+  if(e.target.id==="f-color"){
+    cur().color=e.target.value;
+    const hex=document.querySelector(".colorhex"); if(hex) hex.textContent=cur().color;
+    renderTop(); touch(cur()); queueSave(); return;
+  }
+  if(e.target.id==="f-formation"||e.target.id==="boardFormation"){
+    setFormation(cur(),e.target.value);
+    return;
+  }
+});
+
+document.addEventListener("dblclick",e=>{
+  if(e.target.id==="previewCanvas") playAnim();
+});
+
+window.addEventListener("resize",()=>{ if($("#showStage")) fitStage(); });
+
+window.addEventListener("beforeunload",()=>{
+  try{ localStorage.setItem("soccerboard",JSON.stringify(serialize())); }catch(e){}
+});
+
+/* ================= 初始化 ================= */
+(async function init(){
+  let data=null;
+  try{ data=await idbGet("state"); }catch(e){}
+  if(!data){
+    try{ const s=localStorage.getItem("soccerboard"); if(s) data=JSON.parse(s); }catch(e){}
+  }
+  if(data&&data.teams){
+    hydrate("home",data.teams.home);
+    hydrate("away",data.teams.away);
+    if(data.ui){
+      if(data.ui.side==="away") ui.side="away";
+      ui.step=Math.min(5,Math.max(1,+data.ui.step||1));
+      if(data.ui.view==="v") ui.view="v";
+      ui.showPhoto=data.ui.showPhoto!==false;
+      ui.showName=data.ui.showName!==false;
+    }
+  }
+  ensureSlots(teams.home); ensureSlots(teams.away);
+  renderAll();
+})();
+
+})();
+</script>
+</body>
+</html>

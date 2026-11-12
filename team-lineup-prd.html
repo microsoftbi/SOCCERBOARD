@@ -1,0 +1,1660 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>球队介绍系统 · 赛前站位编排 PRD</title>
+<style>
+:root{
+  --bg:#0a0f0d;
+  --panel:#111815;
+  --panel-2:#161f1b;
+  --line:#24312b;
+  --line-soft:#1b2621;
+  --text:#e8efe9;
+  --text-dim:#9db0a5;
+  --text-mute:#6d8176;
+  --accent:#7ef0a8;
+  --accent-deep:#1f7a4c;
+  --amber:#f2c94c;
+  --red:#ff6b6b;
+  --pitch:#1b6b3a;
+  --pitch-dark:#155230;
+  --radius:10px;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4{margin:0;font-weight:600;letter-spacing:-.01em}
+p{margin:0 0 10px}
+a{color:var(--accent)}
+
+/* ---------- top bar ---------- */
+.topbar{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:12px 20px;background:rgba(10,15,13,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:10px;min-width:0}
+.brand-mark{
+  width:26px;height:26px;border-radius:7px;flex:0 0 auto;
+  background:linear-gradient(160deg,var(--accent),var(--accent-deep));
+  display:grid;place-items:center;color:#07120c;font-weight:800;font-size:13px;
+}
+.brand-title{font-size:14px;font-weight:650;white-space:nowrap}
+.brand-sub{font-size:11px;color:var(--text-mute);white-space:nowrap}
+.topbar-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.chip{
+  font-size:11px;padding:2px 8px;border-radius:99px;border:1px solid var(--line);
+  color:var(--text-dim);background:var(--panel);white-space:nowrap;
+}
+.chip.accent{color:#07120c;background:var(--accent);border-color:var(--accent);font-weight:600}
+.spacer{flex:1}
+.mode-switch{display:flex;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:2px}
+.mode-switch button{
+  appearance:none;border:0;background:transparent;color:var(--text-dim);
+  font:inherit;font-size:12px;padding:5px 12px;border-radius:6px;cursor:pointer;
+}
+.mode-switch button[aria-pressed="true"]{background:var(--panel-2);color:var(--text);box-shadow:inset 0 0 0 1px var(--line)}
+
+/* ---------- shell ---------- */
+.shell{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:0;align-items:start}
+.prototype-pane{position:sticky;top:61px;padding:16px;border-right:1px solid var(--line);height:calc(100vh - 61px);overflow:auto}
+.doc-pane{min-width:0;padding:0}
+
+/* ---------- prototype frame ---------- */
+.frame{
+  border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--panel);
+  box-shadow:0 18px 50px rgba(0,0,0,.45);
+}
+.frame-bar{
+  display:flex;align-items:center;gap:10px;padding:8px 12px;
+  background:var(--panel-2);border-bottom:1px solid var(--line);
+}
+.dots{display:flex;gap:5px}
+.dots i{width:8px;height:8px;border-radius:50%;background:#2c3a33;display:block}
+.dots i:first-child{background:#3d4f45}
+.route{
+  flex:1;min-width:0;font-family:var(--mono);font-size:11px;color:var(--text-mute);
+  background:#0c1210;border:1px solid var(--line-soft);border-radius:6px;padding:3px 9px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.frame-badge{font-size:10px;color:var(--accent);border:1px solid var(--accent-deep);border-radius:99px;padding:1px 7px;white-space:nowrap}
+
+.steps{display:flex;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line-soft);background:#0e1512;flex-wrap:wrap}
+.step{
+  appearance:none;font:inherit;font-size:11px;color:var(--text-mute);
+  background:transparent;border:1px solid transparent;border-radius:6px;
+  padding:4px 8px;cursor:pointer;display:flex;align-items:center;gap:5px;white-space:nowrap;
+}
+.step b{font-family:var(--mono);font-size:10px;opacity:.7;font-weight:600}
+.step[aria-current="true"]{background:rgba(126,240,168,.09);border-color:var(--accent-deep);color:var(--accent)}
+.step.done{color:var(--text-dim)}
+.step.done b{color:var(--accent);opacity:1}
+
+.viewport{padding:14px;background:radial-gradient(120% 100% at 50% 0%,#0f1714,#0a0f0d);min-height:520px}
+.screen{display:none}
+.screen[data-active="true"]{display:block;animation:fade .22s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.hd{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.hd h2{font-size:15px}
+.hd p{font-size:11.5px;color:var(--text-mute);margin:2px 0 0}
+.hd .kbd{font-family:var(--mono);font-size:10px;color:var(--text-mute);border:1px solid var(--line);border-radius:5px;padding:1px 5px}
+
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-bottom:10px}
+.card.tight{padding:10px}
+.lbl{display:block;font-size:11px;color:var(--text-mute);margin-bottom:5px;letter-spacing:.02em}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:10px}
+input[type=text],input[type=number],select,textarea{
+  font:inherit;font-size:12.5px;color:var(--text);background:#0c1210;
+  border:1px solid var(--line);border-radius:7px;padding:7px 9px;width:100%;
+}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent-deep);box-shadow:0 0 0 3px rgba(126,240,168,.12)}
+select{appearance:none;background-image:linear-gradient(45deg,transparent 50%,var(--text-mute) 50%),linear-gradient(135deg,var(--text-mute) 50%,transparent 50%);background-position:calc(100% - 14px) 50%,calc(100% - 9px) 50%;background-size:5px 5px;background-repeat:no-repeat;padding-right:26px}
+.row{display:flex;gap:8px}
+.row>*{min-width:0}
+.grow{flex:1}
+
+.btn{
+  appearance:none;font:inherit;font-size:12.5px;font-weight:550;cursor:pointer;
+  border-radius:8px;padding:7px 13px;border:1px solid var(--line);color:var(--text);background:var(--panel-2);
+  display:inline-flex;align-items:center;gap:6px;transition:background .15s,border-color .15s,transform .1s;
+}
+.btn:hover{background:#1b2621;border-color:#33463c}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#07120c}
+.btn.primary:hover{background:#93f5b6}
+.btn.ghost{background:transparent}
+.btn.sm{font-size:11px;padding:4px 9px;border-radius:6px}
+.btn.danger{color:var(--red);border-color:#4a2626}
+.btn[disabled]{opacity:.4;cursor:not-allowed}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+</style>
+</head>
+<body>
+<style>
+/* ---------- prototype widgets ---------- */
+.chipset{display:flex;gap:6px;flex-wrap:wrap}
+.pill{
+  appearance:none;font:inherit;font-size:12px;cursor:pointer;border-radius:7px;
+  padding:6px 12px;border:1px solid var(--line);background:#0c1210;color:var(--text-dim);
+}
+.pill:hover{border-color:#33463c;color:var(--text)}
+.pill[aria-pressed="true"]{background:rgba(126,240,168,.12);border-color:var(--accent);color:var(--accent);font-weight:600}
+.pill small{display:block;font-size:9.5px;color:var(--text-mute);font-weight:400;line-height:1.3}
+
+.note{font-size:11px;color:var(--text-mute);border-left:2px solid var(--line);padding-left:8px;margin-top:6px}
+.warnbox{
+  display:none;font-size:11.5px;border-radius:7px;padding:7px 10px;margin-top:8px;
+  background:rgba(242,201,76,.07);border:1px solid rgba(242,201,76,.3);color:#f0d98a;
+}
+.warnbox.on{display:block}
+.errbox{
+  display:none;font-size:11.5px;border-radius:7px;padding:7px 10px;margin-top:8px;
+  background:rgba(255,107,107,.07);border:1px solid rgba(255,107,107,.3);color:#ffb3b3;
+}
+.errbox.on{display:block}
+
+/* player rows */
+.roster{display:flex;flex-direction:column;gap:7px}
+.prow{
+  display:grid;grid-template-columns:38px 34px minmax(0,1fr) 96px 48px 30px;
+  gap:7px;align-items:center;padding:7px;border-radius:8px;
+  background:#0d1411;border:1px solid var(--line-soft);
+}
+.prow:focus-within{border-color:var(--accent-deep);background:#101815}
+.prow.bad{border-color:rgba(255,107,107,.45);background:rgba(255,107,107,.05)}
+.prow .num{font-family:var(--mono);font-size:11px;text-align:center;color:var(--text-mute)}
+.prow .num input{padding:4px;text-align:center;font-family:var(--mono)}
+.prow .nm input{padding:5px 8px}
+.prow .pos select{padding:5px 22px 5px 7px;font-size:11.5px}
+.prow .cap{display:grid;place-items:center}
+.prow .cap button{
+  width:26px;height:26px;border-radius:50%;border:1px dashed #33463c;background:transparent;
+  color:var(--text-mute);cursor:pointer;font-size:11px;font-family:var(--mono);
+}
+.prow .cap button[aria-pressed="true"]{background:var(--amber);border:1px solid var(--amber);color:#231c00;font-weight:700;border-style:solid}
+.prow .del{
+  width:26px;height:26px;border-radius:6px;border:1px solid transparent;background:transparent;
+  color:#5d6f65;cursor:pointer;font-size:14px;line-height:1;
+}
+.prow .del:hover{color:var(--red);border-color:#4a2626}
+.ph{
+  width:34px;height:34px;border-radius:8px;overflow:hidden;position:relative;flex:0 0 auto;
+  background:linear-gradient(160deg,#22322a,#16211c);border:1px solid var(--line);
+  display:grid;place-items:center;cursor:pointer;color:#6d8176;font-size:10px;
+}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer}
+.ph.host{border-color:var(--accent-deep)}
+
+.prow.check .pos select{border-color:var(--accent-deep)}
+.rosterwrap{max-height:322px;overflow:auto;padding-right:2px;margin:-2px}
+.rosterwrap::-webkit-scrollbar{width:8px}
+.rosterwrap::-webkit-scrollbar-thumb{background:#22322a;border-radius:9px}
+
+/* pitch */
+.pitchwrap{position:relative;border-radius:10px;overflow:hidden;border:1px solid #1e5b36}
+.pitch{
+  position:relative;width:100%;padding-top:66%;
+  background:
+    repeating-linear-gradient(0deg,rgba(255,255,255,.035) 0 26px,transparent 26px 52px),
+    linear-gradient(150deg,var(--pitch),var(--pitch-dark));
+}
+.pitch .markings{position:absolute;inset:8px;border:1.5px solid rgba(255,255,255,.22);border-radius:4px}
+.pitch .half{position:absolute;left:8px;right:8px;top:50%;border-top:1.5px solid rgba(255,255,255,.22)}
+.pitch .circle{position:absolute;left:50%;top:50%;width:22%;padding-top:22%;transform:translate(-50%,-50%);border:1.5px solid rgba(255,255,255,.22);border-radius:50%}
+.pitch .box{position:absolute;left:50%;transform:translateX(-50%);width:44%;height:13%;border:1.5px solid rgba(255,255,255,.22)}
+.pitch .box.top{top:8px;border-top:0}
+.pitch .box.bot{bottom:8px;border-bottom:0}
+.pitch .spot{position:absolute;left:50%;top:50%;width:4px;height:4px;margin:-2px 0 0 -2px;border-radius:50%;background:rgba(255,255,255,.35)}
+.pitch.vertical{padding-top:134%}
+.pitch.vertical .box{height:9%}
+.pitch.vertical .circle{width:32%;padding-top:32%}
+
+.slot{
+  position:absolute;transform:translate(-50%,-50%);cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;width:74px;
+  user-select:none;transition:transform .12s;
+}
+.slot:active{transform:translate(-50%,-50%) scale(.96)}
+.slot .bubble{
+  width:38px;height:38px;border-radius:50%;overflow:hidden;position:relative;
+  background:#0c1210;border:2px solid rgba(255,255,255,.55);display:grid;place-items:center;
+  font-family:var(--mono);font-size:12px;font-weight:700;color:#cfe0d6;
+  box-shadow:0 3px 10px rgba(0,0,0,.45);
+}
+.slot .bubble img{width:100%;height:100%;object-fit:cover}
+.slot .bubble .capdot{
+  position:absolute;right:-4px;top:-4px;width:14px;height:14px;border-radius:50%;
+  background:var(--amber);color:#231c00;font-size:9px;font-weight:800;display:grid;place-items:center;
+  border:1px solid #231c00;font-family:var(--mono);
+}
+.slot .tag{
+  font-size:9.5px;line-height:1.2;padding:1px 5px;border-radius:4px;
+  background:rgba(7,18,12,.82);color:#e6f2ea;white-space:nowrap;max-width:74px;
+  overflow:hidden;text-overflow:ellipsis;text-align:center;
+}
+.slot .postag{font-size:8.5px;color:#c9dccf;opacity:.72;font-family:var(--mono);letter-spacing:.04em}
+.slot.empty .bubble{border-style:dashed;border-color:rgba(255,255,255,.4);background:rgba(7,18,12,.35);color:#9fb8a8}
+.slot.sel .bubble{border-color:var(--amber);box-shadow:0 0 0 3px rgba(242,201,76,.25),0 3px 10px rgba(0,0,0,.45)}
+.slot.sel .postag{opacity:1;color:var(--amber)}
+.slot.vertical .tag{}
+
+.boardbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.autofill{
+  appearance:none;font:inherit;font-size:11px;cursor:pointer;border-radius:6px;padding:4px 9px;
+  border:1px solid var(--accent-deep);background:rgba(126,240,168,.08);color:var(--accent);
+}
+.autofill:hover{background:rgba(126,240,168,.16)}
+.bench{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;min-height:30px}
+.bench .bp{
+  font-size:10.5px;border:1px solid var(--line);border-radius:6px;padding:2px 7px;background:#0d1411;
+  color:var(--text-dim);cursor:pointer;display:flex;align-items:center;gap:4px;
+}
+.bench .bp .n{font-family:var(--mono);color:var(--text-mute);font-size:9.5px}
+.bench .bp:hover{border-color:var(--accent-deep);color:var(--text)}
+.bench .bp.used{opacity:.38}
+
+/* preview / broadcast */
+.cast{position:relative;border-radius:10px;overflow:hidden;border:1px solid #1e5b36;background:#0a0f0d}
+.cast .commentary{
+  position:absolute;left:0;right:0;bottom:0;padding:7px 10px;
+  background:linear-gradient(transparent,rgba(4,10,7,.88) 40%);
+  display:flex;justify-content:space-between;align-items:flex-end;gap:8px;
+}
+.cast .cname{font-size:11px;font-weight:600;color:#fff}
+.cast .cmeta{font-size:9.5px;color:#a9c4b4;font-family:var(--mono)}
+.cast .badge-x{
+  font-size:9px;padding:1px 6px;border-radius:3px;background:rgba(242,201,76,.16);
+  border:1px solid rgba(242,201,76,.35);color:#f2c94c;font-family:var(--mono);
+}
+.seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden}
+.seg button{
+  appearance:none;font:inherit;font-size:11px;padding:4px 10px;border:0;background:transparent;
+  color:var(--text-mute);cursor:pointer;
+}
+.seg button[aria-pressed="true"]{background:var(--panel-2);color:var(--text)}
+
+.toggle{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text-dim);cursor:pointer}
+.toggle input{accent-color:var(--accent);width:14px;height:14px}
+
+.toast{
+  position:fixed;left:50%;bottom:22px;transform:translate(-50%,18px);
+  background:#16211c;border:1px solid var(--accent-deep);color:var(--text);
+  padding:8px 16px;border-radius:9px;font-size:12px;opacity:0;pointer-events:none;
+  transition:opacity .2s,transform .2s;z-index:99;box-shadow:0 10px 30px rgba(0,0,0,.5);
+}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* ---------- document pane ---------- */
+.docbar{
+  position:sticky;top:61px;z-index:20;display:flex;gap:2px;padding:0 16px;
+  background:rgba(10,15,13,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);overflow-x:auto;
+}
+.tab{
+  appearance:none;font:inherit;font-size:12.5px;color:var(--text-mute);background:transparent;
+  border:0;border-bottom:2px solid transparent;padding:11px 12px;cursor:pointer;white-space:nowrap;
+}
+.tab:hover{color:var(--text-dim)}
+.tab[aria-selected="true"]{color:var(--text);border-bottom-color:var(--accent)}
+.docbody{padding:20px 22px 70px}
+.panel{display:none}
+.panel[data-active="true"]{display:block}
+.panel h2{font-size:19px;margin:0 0 4px}
+.panel .lede{color:var(--text-dim);font-size:13px;margin:0 0 18px}
+.sec{margin:0 0 26px;padding-bottom:22px;border-bottom:1px solid var(--line-soft)}
+.sec:last-child{border-bottom:0;padding-bottom:0}
+.sec h3{font-size:14.5px;margin:0 0 8px;display:flex;align-items:baseline;gap:8px}
+.fid{
+  font-family:var(--mono);font-size:9.5px;color:var(--accent);border:1px solid var(--accent-deep);
+  border-radius:4px;padding:1px 5px;font-weight:500;letter-spacing:.02em;white-space:nowrap;
+}
+.fid.p1{color:var(--amber);border-color:#6b5520}
+.sec h4{font-size:12.5px;color:var(--text-dim);margin:14px 0 6px;letter-spacing:.02em;text-transform:none}
+.sec p,.sec li{font-size:12.8px;color:#c6d4cb}
+.sec ul,.sec ol{margin:6px 0 10px;padding-left:18px}
+.sec li{margin-bottom:4px}
+.sec li::marker{color:var(--text-mute)}
+.sec strong{color:var(--text);font-weight:600}
+
+table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 12px}
+th,td{text-align:left;padding:6px 9px;border-bottom:1px solid var(--line-soft);vertical-align:top}
+th{color:var(--text-mute);font-weight:500;font-size:11px;background:#0d1411;white-space:nowrap}
+td{color:#c6d4cb}
+tbody tr:hover td{background:#0e1512}
+.tblwrap{overflow-x:auto;border:1px solid var(--line-soft);border-radius:8px}
+.tblwrap table{margin:0}
+code{font-family:var(--mono);font-size:11.5px;background:#0c1210;border:1px solid var(--line-soft);border-radius:4px;padding:1px 4px;color:#b9d7c4}
+.kv{display:grid;grid-template-columns:96px minmax(0,1fr);gap:5px 10px;font-size:12.5px}
+.kv dt{color:var(--text-mute);font-size:11.5px}
+.kv dd{margin:0;color:#c6d4cb}
+.tbd{color:var(--amber);font-family:var(--mono);font-size:10.5px}
+.callout{
+  border-left:2px solid var(--accent-deep);background:rgba(126,240,168,.05);
+  border-radius:0 8px 8px 0;padding:9px 12px;font-size:12.5px;color:#c6d4cb;margin:10px 0;
+}
+.callout.amber{border-left-color:#6b5520;background:rgba(242,201,76,.05)}
+.linkbtn{
+  appearance:none;font:inherit;font-size:11.5px;cursor:pointer;background:rgba(126,240,168,.08);
+  border:1px solid var(--accent-deep);color:var(--accent);border-radius:6px;padding:3px 8px;margin:2px 4px 2px 0;
+}
+.linkbtn:hover{background:rgba(126,240,168,.16)}
+.flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:11.5px;margin:8px 0 12px}
+.flow .n{border:1px solid var(--line);border-radius:6px;padding:3px 8px;background:#0d1411;color:var(--text-dim)}
+.flow .n.hi{border-color:var(--accent-deep);color:var(--accent);background:rgba(126,240,168,.07)}
+.flow .a{color:var(--text-mute)}
+.statusgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:6px;margin:8px 0 12px}
+.statusgrid .s{border:1px solid var(--line);border-radius:7px;padding:8px 10px;background:#0d1411}
+.statusgrid .s b{display:block;font-size:11.5px;color:var(--text)}
+.statusgrid .s span{font-size:10.5px;color:var(--text-mute)}
+.feature-section:target,.feature-section.focus{animation:flash 1.1s ease}
+@keyframes flash{0%{background:rgba(126,240,168,.12)}100%{background:transparent}}
+
+/* ---------- text mode ---------- */
+body.textmode .shell{display:block}
+body.textmode .prototype-pane{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);padding:16px}
+body.textmode .docbar{display:none}
+body.textmode .panel{display:block !important;border-top:1px solid var(--line);margin-top:24px}
+body.textmode .docbody{padding-bottom:40px}
+body.textmode .textmode-hide{display:none !important}
+body.textmode .doc-only-links{display:none}
+
+.tm-only{display:none}
+body.textmode .tm-only{display:block}
+
+@media(max-width:1000px){
+  .shell{display:block}
+  .prototype-pane{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
+  .docbar{position:static}
+  .brand-sub{display:none}
+}
+@media print{
+  .topbar,.docbar,.prototype-pane,.toast{display:none !important}
+  body{background:#fff;color:#111}
+  body.textmode .docbody{padding:0}
+  .panel{display:block !important}
+  .sec{page-break-inside:avoid}
+}
+</style>
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">XI</div>
+    <div>
+      <div class="brand-title">球队介绍系统 · 赛前站位编排</div>
+      <div class="brand-sub">Product Requirements · 交互式 PRD</div>
+    </div>
+  </div>
+  <div class="topbar-meta">
+    <span class="chip">v0.1 草案</span>
+    <span class="chip accent">待评审</span>
+    <span class="chip">P0 已定义</span>
+  </div>
+  <div class="spacer"></div>
+  <div class="mode-switch" role="group" aria-label="视图模式">
+    <button id="modeSplit" aria-pressed="true">原型 / 文档</button>
+    <button id="modeText" aria-pressed="false">纯文本 PRD</button>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="prototype-pane">
+    <div class="frame">
+      <div class="frame-bar">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="route" id="routeText">/matches/CF-2409/lineup/home</div>
+        <div class="frame-badge">导播端</div>
+      </div>
+
+      <nav class="steps" id="stepNav" aria-label="流程步骤">
+        <button class="step" data-goto="setup" aria-current="true"><b>01</b>比赛与人数</button>
+        <button class="step" data-goto="roster"><b>02</b>球员录入</button>
+        <button class="step" data-goto="board"><b>03</b>站位编排</button>
+        <button class="step" data-goto="cast"><b>04</b>播出预览</button>
+      </nav>
+
+      <div class="viewport">
+        <!-- ============ 01 setup ============ -->
+        <section class="screen" data-screen="setup" data-active="true">
+          <div class="hd">
+            <div>
+              <h2>创建本场球队档案</h2>
+              <p>先确定赛制人数，系统据此生成对应的阵型库与录入槽位。</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+              <span class="kbd">STEP 01 / 04</span>
+              <button class="linkbtn" data-link="feature-match-setup" style="margin:0">查看需求</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="lbl">本场身份</div>
+            <div class="seg" style="width:100%" id="sideSeg">
+              <button aria-pressed="true" data-side="home" style="flex:1">主队</button>
+              <button aria-pressed="false" data-side="away" style="flex:1">客队</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="row">
+              <div class="field grow">
+                <label class="lbl" for="teamName">球队全称</label>
+                <input type="text" id="teamName" value="上海海港" placeholder="例如：上海海港">
+              </div>
+              <div class="field" style="width:88px">
+                <label class="lbl" for="teamCode">三字代码</label>
+                <input type="text" id="teamCode" value="SHH" maxlength="4" style="font-family:var(--mono);text-transform:uppercase">
+              </div>
+            </div>
+            <div class="field">
+              <label class="lbl" for="kitColor">球队主色（用于站位图与字幕条）</label>
+              <div class="row" style="align-items:center">
+                <input type="color" id="kitColor" value="#c8102e" style="width:44px;height:30px;padding:2px;background:#0c1210;border:1px solid var(--line);border-radius:6px;cursor:pointer">
+                <span class="note" style="margin:0">选手持设备时以该色区分主客队，串色时系统会提示。</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="lbl">场上人数 <span class="chip" style="margin-left:4px">决定阵型库</span></div>
+            <div class="chipset" id="countSet">
+              <button class="pill" aria-pressed="false" data-count="5">5 人制<small>室内五人制</small></button>
+              <button class="pill" aria-pressed="true" data-count="6">6 人制<small>青训 / 业余</small></button>
+              <button class="pill" aria-pressed="false" data-count="8">8 人制<small>青少年联赛</small></button>
+              <button class="pill" aria-pressed="false" data-count="11">11 人制<small>标准职业</small></button>
+            </div>
+            <div class="field" style="margin-top:12px;margin-bottom:0">
+              <label class="lbl" for="formationSel">默认阵型</label>
+              <select id="formationSel"></select>
+              <span class="note" id="formationHint"></span>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn primary" data-goto="roster">开始录入球员 →</button>
+            <button class="btn ghost sm" id="btnDemo">载入示例名单</button>
+          </div>
+        </section>
+
+        <!-- ============ 02 roster ============ -->
+        <section class="screen" data-screen="roster">
+          <div class="hd">
+            <div>
+              <h2>逐位录入球员</h2>
+              <p>按球衣号码顺序填写；照片可后补，未上传时站位图使用号码占位。</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+              <span class="kbd">STEP 02 / 04</span>
+              <button class="linkbtn" data-link="feature-roster-entry" style="margin:0">查看需求</button>
+            </div>
+          </div>
+
+          <div class="boardbar">
+            <div class="chip" id="rosterMeta">6 人制 · 首发 6 · 已填 0 / 6</div>
+            <div class="btn-row">
+              <button class="btn sm ghost" id="btnPaste">批量粘贴名单</button>
+              <button class="btn sm ghost" id="btnAddPlayer">+ 加一人</button>
+            </div>
+          </div>
+
+          <div class="card tight" style="padding:0;overflow:hidden">
+            <div class="rosterwrap">
+              <div class="roster" id="rosterList"></div>
+            </div>
+          </div>
+
+          <div class="warnbox" id="rosterWarn"></div>
+          <div class="errbox" id="rosterErr"></div>
+
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn ghost" data-goto="setup">← 返回</button>
+            <button class="btn primary" id="btnToBoard">校验并进入站位编排 →</button>
+          </div>
+          <div class="note">校验项：姓名必填、号码在 1–99 内且不重复、至少 1 名门将、队长 0 或 1 人。</div>
+        </section>
+        <!-- ============ 03 board ============ -->
+        <section class="screen" data-screen="board">
+          <div class="hd">
+            <div>
+              <h2>把球员放进阵型槽位</h2>
+              <p>点击空槽位，再点替补席上的球员即可落位；点击两个已有球员可互换位置。</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+              <span class="kbd">STEP 03 / 04</span>
+              <button class="linkbtn" data-link="feature-slot-board" style="margin:0">查看需求</button>
+            </div>
+          </div>
+
+          <div class="boardbar">
+            <div class="row" style="gap:6px;align-items:center">
+              <select id="boardFormation" style="width:auto;font-size:11.5px;padding:4px 24px 4px 7px"></select>
+              <button class="autofill" id="btnAutoFill">按位置自动落位</button>
+            </div>
+            <button class="btn sm ghost" id="btnClearSlots">清空全部</button>
+          </div>
+
+          <div class="pitchwrap">
+            <div class="pitch" id="boardPitch">
+              <div class="markings"></div>
+              <div class="half"></div>
+              <div class="circle"></div>
+              <div class="box top"></div>
+              <div class="box bot"></div>
+              <div class="spot"></div>
+            </div>
+          </div>
+
+          <div class="boardbar" style="margin:8px 0 0">
+            <div class="lbl" style="margin:0">替补席 <span class="chip" id="benchMeta">0 人</span></div>
+            <div class="note" style="margin:0;border:0;padding:0">已落位 <span id="placedCount">0</span> / <span id="slotTotal">6</span></div>
+          </div>
+          <div class="bench" id="benchList"></div>
+
+          <div class="errbox" id="boardErr"></div>
+
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn ghost" data-goto="roster">← 返回修改名单</button>
+            <button class="btn primary" id="btnToCast">生成播出站位图 →</button>
+          </div>
+        </section>
+
+        <!-- ============ 04 cast ============ -->
+        <section class="screen" data-screen="cast">
+          <div class="hd">
+            <div>
+              <h2>播出预览</h2>
+              <p>这是导播在赛前介绍画面中直接使用的画面，可切换视角与显示项。</p>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+              <span class="kbd">STEP 04 / 04</span>
+              <button class="linkbtn" data-link="feature-cast-preview" style="margin:0">查看需求</button>
+            </div>
+          </div>
+
+          <div class="card tight">
+            <div class="boardbar" style="margin:0 0 8px">
+              <div class="seg">
+                <button aria-pressed="true" data-view="h">横向</button>
+                <button aria-pressed="false" data-view="v">纵向</button>
+              </div>
+              <div class="row" style="gap:10px">
+                <label class="toggle"><input type="checkbox" id="tgPhoto" checked> 显示头像</label>
+                <label class="toggle"><input type="checkbox" id="tgName" checked> 显示姓名</label>
+              </div>
+            </div>
+            <div class="cast" id="castWrap">
+              <div class="pitch" id="castPitch">
+                <div class="markings"></div>
+                <div class="half"></div>
+                <div class="circle"></div>
+                <div class="box top"></div>
+                <div class="box bot"></div>
+                <div class="spot"></div>
+              </div>
+              <div class="commentary">
+                <div>
+                  <div class="cname" id="castTeam">上海海港</div>
+                  <div class="cmeta" id="castMeta">6 人制 · 2-2-1 · 主队</div>
+                </div>
+                <div class="badge-x" id="castBadge">PRE-MATCH</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="btn-row">
+            <button class="btn primary" id="btnExportPng">导出站位图</button>
+            <button class="btn ghost" id="btnExportJson">导出名单 JSON</button>
+            <button class="btn ghost" id="btnPush" title="原型中不接入真实导播台">推送导播台</button>
+          </div>
+          <div class="note" id="castNote">尚未完成站位时，站位图为草稿态：空槽位以虚线圆显示。</div>
+
+          <div class="btn-row" style="margin-top:10px">
+            <button class="btn ghost" data-goto="board">← 调整站位</button>
+            <button class="btn ghost" data-goto="setup">返回比赛设置</button>
+          </div>
+        </section>
+      </div><!-- /viewport -->
+    </div><!-- /frame -->
+  </aside>
+
+  <main class="doc-pane">
+    <div class="docbar" role="tablist" aria-label="PRD 章节">
+      <button class="tab" role="tab" aria-selected="true" data-tab="overview">概览</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="design">设计与流程</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="detail">功能明细</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="rules">规则与字段</button>
+    </div>
+    <div class="docbody">
+      <!-- ================= OVERVIEW ================= -->
+      <section class="panel" data-panel="overview" data-active="true">
+        <h2>概览</h2>
+        <p class="lede">把一支球队的「上几个人、谁上、站哪儿、长什么样」，在开播前变成一张导播可直接使用的赛前站位图。</p>
+
+        <div class="sec">
+          <h3>要解决的问题</h3>
+          <p>赛前球队介绍画面目前依赖人工排版：制图人员拿到一份手写或聊天记录里的名单，在图像软件里摆 6、8 或 11 个点位。改一个号码就要重做整张图，位置标签靠记忆，队长经常漏标。</p>
+          <p>业余、青训与低级别职业赛事没有专职制图人员，名单往往在开赛前几十分钟才到齐。错号、错位、漏队长会直接出现在直播画面里，且没有二次检查的机会。</p>
+        </div>
+
+        <div class="sec">
+          <h3>产品定位</h3>
+          <dl class="kv">
+            <dt>主要用户</dt><dd>转播制作人员 / 导播助理。单人操作，每队 10–15 分钟内录完。</dd>
+            <dt>使用时机</dt><dd>赛前名单确认后、开播前，按主队、客队各建一份档案。</dd>
+            <dt>核心任务</dt><dd>录入人数与球员信息，编排场上位置，生成可交付的赛前站位图。</dd>
+            <dt>完成条件</dt><dd>站位图导出成功，且校验全部通过：人数已满、号码不重复、队长唯一、每名上场球员都有槽位。</dd>
+            <dt>系统负责</dt><dd>按人数提供阵型与槽位、校验冲突、记住照片与站位、生成与导出画面。</dd>
+            <dt>用户负责</dt><dd>确认名单真实、指定队长、决定谁站哪个槽位、确认导出结果符合播出规范。</dd>
+            <dt>共享对象</dt><dd>球队档案（Team Sheet）。两份档案（主/客）共同构成一场比赛的介绍素材。</dd>
+          </dl>
+        </div>
+
+        <div class="sec">
+          <h3>P0 范围</h3>
+          <p>只做一条完整可交付的链路：建档案 → 录人 → 排位 → 出图。以下每一项都是链路中不可删除的一环。</p>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>ID</th><th>能力</th><th>为什么在 P0</th></tr></thead>
+              <tbody>
+                <tr><td><code>F1</code></td><td>比赛与人数设置</td><td>人数决定阵型库和槽位数量，是所有后续校验的基准。</td></tr>
+                <tr><td><code>F2</code></td><td>球员逐位录入</td><td>姓名、号码、位置是画面上的三类必要信息。</td></tr>
+                <tr><td><code>F3</code></td><td>球员照片</td><td>转播介绍画面的主体；缺失时必须有可用的降级表现。</td></tr>
+                <tr><td><code>F4</code></td><td>队长标记</td><td>队长是解说与字幕的固定信息，漏标属于播出事故。</td></tr>
+                <tr><td><code>F5</code></td><td>阵型站位编排</td><td>本产品的核心差异点：位置由阵型槽位决定，而非文字描述。</td></tr>
+                <tr><td><code>F6</code></td><td>播出站位图预览</td><td>导播需要在导出前确认画面，避免直接出片后发现错误。</td></tr>
+                <tr><td><code>F7</code></td><td>导出与交接</td><td>链路终点：没有导出就没有交付。</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>P1 与本期不做</h3>
+          <p><strong>P1（P0 跑通后再做）</strong>：批量粘贴名单、历史球队档案复用、替补席随图展示、与字幕条模板捆绑输出。</p>
+          <p><strong>本期明确不做</strong>：战术跑位动画、比赛中的实时换人联动、多语言解说词、云端球队资料库、直接叠加到直播信号。</p>
+        </div>
+
+        <div class="sec">
+          <h3>假设与待确认</h3>
+          <ul>
+            <li>操作端为桌面浏览器，网络可用，但允许断网时继续编辑本地档案。<span class="tbd">[Assumption, TBD]</span></li>
+            <li>照片来源为用户本地文件，系统不做抠图与美化，仅按固定比例裁切。<span class="tbd">[Assumption, TBD]</span></li>
+            <li>导出图的目标分辨率与画幅（16:9 横版 / 9:16 竖版）需按播出规范确认。<span class="tbd">[TBD]</span></li>
+            <li>同一场比赛的主客队是否共用一套阵型设置，需与导播确认。<span class="tbd">[TBD]</span></li>
+          </ul>
+          <div class="callout amber">评审重点：<strong>人数与阵型是否足够覆盖真实赛制</strong>、<strong>照片缺失时的降级方案是否可接受</strong>、<strong>导出格式与画幅</strong>。</div>
+        </div>
+      </section>
+      <!-- ================= DESIGN ================= -->
+      <section class="panel" data-panel="design">
+        <h2>设计与流程</h2>
+        <p class="lede">四个步骤对应四种心智负担：确定规模、填人名、摆放位置、确认画面。每一步都可以回退，且不丢失已填内容。</p>
+
+        <div class="sec">
+          <h3>核心流程</h3>
+          <div class="flow">
+            <span class="n hi">01 建档案：身份·人数·阵型</span><span class="a">→</span>
+            <span class="n hi">02 逐位录球员：号码·姓名·位置·队长·照片</span><span class="a">→</span>
+            <span class="n hi">03 编排槽位：自动落位 + 手动调整</span><span class="a">→</span>
+            <span class="n hi">04 预览与导出</span>
+          </div>
+          <p>触发：名单确认后，操作员在主队/客队档案上点击「开始录入」。完成：站位图导出成功并通过全部校验。回收：任意步骤都可返回修改，修改后校验重新计算。</p>
+          <p><strong>最重要的一条恢复路径</strong>：人数从 11 改为 6 时，系统不删除已录入的球员，而是把多出的球员移到替补席，并保留全部姓名、号码与照片；切回 11 人时可重新落位。</p>
+        </div>
+
+        <div class="sec">
+          <h3>对象模型</h3>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>对象</th><th>关键内容</th><th>生命周期</th><th>关系</th></tr></thead>
+              <tbody>
+                <tr><td>球队档案<br><code>TeamSheet</code></td><td>身份（主/客）、球队名称、三字代码、主色、场上人数、默认阵型</td><td>由操作员创建；导出后可继续修改并重新导出</td><td>含 1 份名单与 1 套槽位</td></tr>
+                <tr><td>球员<br><code>Player</code></td><td>号码、姓名、主位置、是否队长、照片、是否上场</td><td>录入即有；可编辑、可删除、可在槽位间移动</td><td>归属档案；占用 0 或 1 个槽位</td></tr>
+                <tr><td>阵型<br><code>Formation</code></td><td>名称、人数、槽位列表（横纵坐标 + 位置缩写）</td><td>系统内置，随人数切换</td><td>决定槽位集合</td></tr>
+                <tr><td>槽位<br><code>Slot</code></td><td>位置缩写、坐标、当前球员</td><td>随阵型重建；重建时尽量保留落位</td><td>属阵型；可空置</td></tr>
+                <tr><td>站位图<br><code>BroadcastCard</code></td><td>视角、显示项、渲染后的画面</td><td>由当前槽位实时生成，不单独存草稿</td><td>由档案派生</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>关键产品决策</h3>
+          <h4>先定人数，再录人</h4>
+          <p>人数不是画面参数，而是名单的容量约束。先定人数，录入阶段就能即时显示「已填 4 / 6」，并把校验标准固定下来；否则要到出图时才暴露缺人。</p>
+          <h4>位置与槽位分离</h4>
+          <p>球员的信息里存「主位置」（如 CDM），槽位上存「本场位置」（如 RCB）。同一个人在不同阵型里站的位置可能不同，两者不能合并；自动落位只做建议，最终以槽位为准。</p>
+          <h4>照片允许缺失，但必须有降级</h4>
+          <p>业余赛事常拿不到标准头像。缺图时不阻塞流程，站位图用球队主色底 + 球衣号码占位，与有头像的球员视觉重量一致，避免画面出现空洞。</p>
+          <h4>不自动决定队长</h4>
+          <p>队长由操作员显式标记，系统只保证「最多一人」。系统不根据出场时间、位置或历史数据推断队长。</p>
+          <h4>导出静态画面而非动态组件</h4>
+          <p>本期交付物是一张图与一份结构化名单，不接管直播渲染。这样系统可以脱离直播软件独立使用，也避免与导播台耦合。</p>
+        </div>
+
+        <div class="sec">
+          <h3>界面与状态</h3>
+          <p>桌面端左侧为操作区（导播端），右侧为本文档。四个页面共用同一份档案状态：身份、人数、阵型、球员列表、槽位、视角与显示项。切换页面不重置任何数据。</p>
+          <div class="statusgrid">
+            <div class="s"><b>草稿</b><span>档案已建，名单未录满</span></div>
+            <div class="s"><b>待编排</b><span>名单通过基础校验，尚有槽位为空</span></div>
+            <div class="s"><b>可导出</b><span>全部槽位已落位且校验通过</span></div>
+            <div class="s"><b>已导出</b><span>图片与名单均已生成</span></div>
+          </div>
+          <p>导出后修改任意字段，状态回到「可导出（待重新导出）」，导出按钮保持可用并提示上一次导出时间。</p>
+        </div>
+      </section>
+      <!-- ================= DETAIL ================= -->
+      <section class="panel" data-panel="detail">
+        <h2>功能明细</h2>
+        <p class="lede">按用户任务组织，每一项都对应原型中的一处可操作界面。</p>
+
+        <div class="sec feature-section" id="feature-match-setup">
+          <h3><span class="fid">F1</span> 比赛与人数设置</h3>
+          <p>进入系统后的第一屏。用户在这里确定本场是谁、上几个人、默认怎么站。此处的选择直接决定后续录入的行数与可选阵型，因此必须在录人之前完成。</p>
+          <h4>操作与响应</h4>
+          <ol>
+            <li>选择本场身份「主队 / 客队」。同一比赛内两份档案可同时存在，身份影响站位图上的队名位置与出场顺序，不限制功能。</li>
+            <li>填写球队全称与三字代码。三字代码用于窄屏字幕与图角标，超过 4 个字符时截断提示。</li>
+            <li>选择球队主色。该色用于站位图球员缺图时的占位底色，以及字幕条的主色块。</li>
+            <li>选择场上人数：5、6、8、11。切换时立即重建阵型下拉与录入行数，并显示「决定阵型库」说明。</li>
+            <li>选择默认阵型。下拉只列出与该人数匹配的阵型。</li>
+          </ol>
+          <h4>规则与边界</h4>
+          <ul>
+            <li>人数切换不删除已录入球员：减少人数时，末尾的多余球员转入替补席；增加人数时，空行追加在名单末尾。</li>
+            <li>三字代码为空时允许保存，导出图角标退化为球队名称首字。<span class="tbd">[Assumption, TBD]</span></li>
+            <li>球队全称为空时不允许进入下一步，提示「请填写球队名称」。</li>
+            <li>主客两队主色相同或过近时，导出前给出提醒，但不阻断导出（真实球衣可能确实接近）。</li>
+          </ul>
+          <p><button class="linkbtn" data-goto="setup" data-tab-open="overview">打开原型：比赛与人数</button></p>
+        </div>
+
+        <div class="sec feature-section" id="feature-roster-entry">
+          <h3><span class="fid">F2</span> 球员逐位录入</h3>
+          <p>录入区按「一人一行」排列，行数等于场上人数。操作员按号码顺序逐位填写，这一过程必须能单手快速完成，且随时知道还差几个人。</p>
+          <h4>每一行的字段</h4>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>字段</th><th>输入方式</th><th>必填</th><th>说明</th></tr></thead>
+              <tbody>
+                <tr><td>号码</td><td>数字，1–99</td><td>是</td><td>唯一；与已填号码冲突时该行标红并给出具体冲突对象。</td></tr>
+                <tr><td>姓名</td><td>文本，2–20 字</td><td>是</td><td>站位图标签显示；过长时标签省略，导出名单保留全名。</td></tr>
+                <tr><td>位置</td><td>下拉，按人数过滤</td><td>是</td><td>表示球员主位置，用于自动落位建议，不等同于最终站位。</td></tr>
+                <tr><td>队长</td><td>圆形开关，全档案唯一</td><td>否</td><td>标记新的队长时，原队长自动取消，不会出现两人同时为队长。</td></tr>
+                <tr><td>照片</td><td>本地文件选择</td><td>否</td><td>见 F3。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>进度与校验</h4>
+          <p>顶部实时显示「已填 x / n」，x 以姓名与号码均非空的行计数。点击「校验并进入站位编排」时按顺序检查：姓名缺失 → 号码越界 → 号码重复 → 无门将 → 队长多于一人。只展示第一个未通过项，并定位到对应行；全部通过才进入下一步。</p>
+          <h4>边界</h4>
+          <ul>
+            <li>删除一名球员时，若该球员已占用槽位，槽位同时清空，并提示可撤销。<span class="tbd">[Assumption, TBD]</span></li>
+            <li>增加的行默认为空，不参与校验，也不出现在站位图。</li>
+            <li>录入过程中切换人数，已填内容按行序保留，不重新排序号码。</li>
+          </ul>
+          <p><button class="linkbtn" data-goto="roster">打开原型：球员录入</button></p>
+        </div>
+
+        <div class="sec feature-section" id="feature-photo">
+          <h3><span class="fid">F3</span> 球员照片</h3>
+          <p>照片是赛前介绍画面的视觉主体，但拿到标准头像并不总是可行。设计目标是：有图时整齐一致，无图时不出现空洞。</p>
+          <h4>行为</h4>
+          <ul>
+            <li>每行提供一个方形上传位。可从本地选择图片，选择成功后立即显示缩略图。</li>
+            <li>再次点击可替换；悬停显示「替换」提示。</li>
+            <li>照片按 1:1 居中裁切，站位图内以圆形呈现，不改变原文件比例。</li>
+            <li>未上传时，上传位显示「+ 照片」，站位图用球队主色底 + 白色球衣号码代替。</li>
+          </ul>
+          <h4>边界</h4>
+          <ul>
+            <li>非图片文件或读取失败：保留原有照片，提示「该文件无法作为照片使用」。</li>
+            <li>照片缺失不阻断导出，仅在导出前汇总提示「n 名球员未上传照片」。</li>
+            <li>照片尺寸上限与压缩策略。<span class="tbd">[TBD]</span></li>
+          </ul>
+          <p><button class="linkbtn" data-goto="roster">打开原型：照片上传</button></p>
+        </div>
+
+        <div class="sec feature-section" id="feature-captain">
+          <h3><span class="fid">F4</span> 队长标记</h3>
+          <p>队长是解说与字幕必提的信息。系统把它做成「互斥开关」而非自由勾选，避免两人同队的播出错误。</p>
+          <ul>
+            <li>每行有一个队长开关。点击某球员后，其余球员的标记自动取消。</li>
+            <li>再次点击同一球员即取消标记，允许「暂未指定」。</li>
+            <li>站位图上，队长在头像右上角显示字母 <code>C</code> 的黄色圆标，一目了然。</li>
+            <li>校验不要求必须指定队长，但在导出前提示「尚未指定队长」。</li>
+          </ul>
+          <p><button class="linkbtn" data-goto="board">打开原型：队长标记呈现</button></p>
+        </div>
+        <div class="sec feature-section" id="feature-slot-board">
+          <h3><span class="fid">F5</span> 阵型站位编排</h3>
+          <p>用户的核心动作不是描述位置，而是「把人放到位置上」。画面上呈现的是真实俯视球场，槽位由所选阵型预先确定，球员从替补席被放入槽位。</p>
+          <h4>落位方式</h4>
+          <ol>
+            <li><strong>自动落位</strong>：按球员主位置与槽位位置的对应关系，一次性把所有未落位球员填入最近的空槽；填不满时保留空槽并标为虚线。</li>
+            <li><strong>手动落位</strong>：点击一个槽位使其进入选中态，再点击替补席上的任一球员即放入。选中槽位后再次点击已占用槽位，则该球员回到替补席。</li>
+            <li><strong>交换</strong>：依次点击两个已占用槽位，两位球员互换，槽位上的位置标签保持不变。</li>
+            <li><strong>换阵型</strong>：切换阵型时按位置靠近程度重建槽位，并尽量保留已落位球员；无法映射的球员回到替补席。</li>
+          </ol>
+          <h4>可视化规则</h4>
+          <ul>
+            <li>槽位显示三部分：头像或号码圆泡、姓名标签、位置缩写。位置缩写始终取自槽位而非球员主位置。</li>
+            <li>空槽位以虚线圆 + 位置缩写显示，明确告诉用户这里缺谁。</li>
+            <li>替补席实时显示未落位球员，已落位者在替补席置灰，避免重复放入。</li>
+            <li>顶部显示「已落位 x / n」，n 等于该阵型槽位总数。</li>
+          </ul>
+          <h4>边界</h4>
+          <ul>
+            <li>槽位未填满时允许进入预览，但「导出站位图」不可用，并提示还差几个槽位。</li>
+            <li>同一球员不会同时出现在两个槽位；试图重复放入时提示「该球员已在场上」。</li>
+            <li>该阵型槽位少于在场球员时，多出的球员留在替补席，不自动覆盖已落位者。</li>
+          </ul>
+          <p><button class="linkbtn" data-goto="board">打开原型：站位编排</button></p>
+        </div>
+
+        <div class="sec feature-section" id="feature-cast-preview">
+          <h3><span class="fid">F6</span> 播出站位图预览</h3>
+          <p>预览画面就是导播最终使用的画面，因此它需要在不进入图片编辑器的前提下，回答「这张图能不能上」。</p>
+          <h4>画面构成</h4>
+          <ul>
+            <li>俯视半场，主队由下向上进攻；球员以圆形头像、姓名、号码与位置排布。</li>
+            <li>右下角（纵向时为底部）为球队信息条：球队名称、赛制、阵型、主客身份、<code>PRE-MATCH</code> 标识。</li>
+            <li>队长在头像角上显示 <code>C</code> 标；未上传照片者显示球队主色底与号码。</li>
+          </ul>
+          <h4>可切换项</h4>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>选项</th><th>默认</th><th>影响</th></tr></thead>
+              <tbody>
+                <tr><td>横向 / 纵向</td><td>横向</td><td>纵向用于竖屏播出与更衣室大屏；只改变画幅与标注排布，不影响槽位关系。</td></tr>
+                <tr><td>显示头像</td><td>开</td><td>关闭后使用号码圆泡，适合照片未齐时的临时播报。</td></tr>
+                <tr><td>显示姓名</td><td>开</td><td>关闭后仅保留号码与位置，用于小尺寸画面。</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p>任一切换项立即重绘画面，不等候保存。预览中的画面与导出的画面必须一致，不允许存在「预览好看、导出错位」的差异。</p>
+          <p><button class="linkbtn" data-goto="cast">打开原型：播出预览</button></p>
+        </div>
+
+        <div class="sec feature-section" id="feature-export">
+          <h3><span class="fid">F7</span> 导出与交接</h3>
+          <p>完成链路交付两种产物：给人看的画面，给系统用的名单。</p>
+          <h4>导出的前置条件</h4>
+          <ul>
+            <li>球队名称非空。</li>
+            <li>在场球员人数等于所选人数，且每个槽位都有球员。</li>
+            <li>号码无重复；队长不超过一人。</li>
+            <li>以上不满足时导出按钮不可用，并在按钮旁给出唯一原因。</li>
+          </ul>
+          <h4>产物</h4>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>产物</th><th>内容</th><th>用途</th></tr></thead>
+              <tbody>
+                <tr><td>站位图图片</td><td>当前预览画面的静态图，画幅与视角跟随预览设置</td><td>直接贴入赛前介绍模板或投屏</td></tr>
+                <tr><td>名单 JSON</td><td>球队信息、人数、阵型、槽位坐标、球员字段（不含照片二进制）</td><td>交给字幕系统、数据组或下一场复用</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>交接与重新导出</h4>
+          <p>导出成功后记录导出时间与当前画面配置。之后修改任何字段，系统提示「档案已修改，画面需重新导出」，但不清除已有导出文件。</p>
+          <ul>
+            <li>「推送导播台」本期不接入真实接口，点击后明确提示「本期未接入，请使用导出文件」。<span class="tbd">[TBD]</span></li>
+            <li>导出失败（渲染或写入异常）时保留当前状态，允许重试；连续失败提示改为导出 JSON 作为兜底。</li>
+          </ul>
+          <p><button class="linkbtn" data-goto="cast">打开原型：导出</button></p>
+        </div>
+
+        <div class="sec feature-section" id="feature-batch-paste">
+          <h3><span class="fid p1">F8 · P1</span> 批量粘贴名单</h3>
+          <p>名单常在聊天窗口中以「7 张三 5 李四」的形式传来。逐行录入 11 人约需 3–5 分钟，批量粘贴可压缩到几十秒，因此在 P0 稳定后优先补齐。</p>
+          <ul>
+            <li>支持「号码 + 空格 + 姓名」每行一人，也兼容「姓名 + 号码」与逗号分隔。</li>
+            <li>解析后进入预览表，逐行确认、修正后再写入名单，不直接覆盖现有球员。</li>
+            <li>无法识别的行集中列在底部，由用户手动处理，不静默丢弃。</li>
+            <li>位置与队长不作为粘贴内容，粘贴后仍需用户指定；系统可按号码推断门将（1 号）并标注为建议，需用户确认。</li>
+          </ul>
+        </div>
+      </section>
+      <!-- ================= RULES ================= -->
+      <section class="panel" data-panel="rules">
+        <h2>规则与字段</h2>
+        <p class="lede">本节是唯一的规则来源。功能明细中的校验、提示与状态，均以本节为准。</p>
+
+        <div class="sec">
+          <h3>人数与阵型库</h3>
+          <p>阵型库内置，随人数过滤。阵型字符串由后场到前场的数字分段组成，例如 <code>4-2-3-1</code> 表示 4 后卫、2 后腰、3 前腰、1 前锋。</p>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>人数</th><th>可选阵型</th><th>槽位总数</th><th>默认</th></tr></thead>
+              <tbody>
+                <tr><td>5 人制</td><td>2-2、1-2-1、3-1</td><td>5</td><td>2-2</td></tr>
+                <tr><td>6 人制</td><td>2-2-1、1-3-1、3-2、2-1-2</td><td>6</td><td>2-2-1</td></tr>
+                <tr><td>8 人制</td><td>3-2-2、2-3-2、3-3-1、4-2-1</td><td>8</td><td>3-2-2</td></tr>
+                <tr><td>11 人制</td><td>4-4-2、4-3-3、4-2-3-1、4-4-1-1、3-5-2、5-3-2</td><td>11</td><td>4-4-2</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="callout">阵型库需要与真实赛制核对，尤其是 6 人制与 8 人制的当地常用排法。<span class="tbd">[TBD]</span>新增阵型时只需补充槽位坐标与位置缩写，不改动流程。</div>
+        </div>
+
+        <div class="sec">
+          <h3>位置缩写</h3>
+          <p>位置分两类：球员主位置（录入时选择）与槽位位置（由阵型决定）。两者使用同一套缩写，便于映射。</p>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>缩写</th><th>含义</th><th>适用人数</th></tr></thead>
+              <tbody>
+                <tr><td><code>GK</code></td><td>门将</td><td>5 / 6 / 8 / 11</td></tr>
+                <tr><td><code>CB</code> <code>LCB</code> <code>RCB</code></td><td>中后卫（左 / 右）</td><td>6 / 8 / 11</td></tr>
+                <tr><td><code>LB</code> <code>RB</code></td><td>边后卫</td><td>5 / 6 / 8 / 11</td></tr>
+                <tr><td><code>LWB</code> <code>RWB</code></td><td>翼卫</td><td>11</td></tr>
+                <tr><td><code>CDM</code> <code>LDM</code> <code>RDM</code></td><td>后腰</td><td>8 / 11</td></tr>
+                <tr><td><code>CM</code> <code>LCM</code> <code>RCM</code></td><td>中前卫</td><td>5 / 6 / 8 / 11</td></tr>
+                <tr><td><code>CAM</code> <code>LAM</code> <code>RAM</code></td><td>前腰</td><td>8 / 11</td></tr>
+                <tr><td><code>LM</code> <code>RM</code></td><td>边前卫</td><td>6 / 8 / 11</td></tr>
+                <tr><td><code>LW</code> <code>RW</code></td><td>边锋</td><td>8 / 11</td></tr>
+                <tr><td><code>ST</code> <code>LST</code> <code>RST</code> <code>CF</code></td><td>前锋 / 中锋</td><td>5 / 6 / 8 / 11</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>字段规则</h3>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>字段</th><th>类型</th><th>规则</th><th>默认</th></tr></thead>
+              <tbody>
+                <tr><td>本场身份</td><td>枚举</td><td>主队 / 客队，单选</td><td>主队</td></tr>
+                <tr><td>球队全称</td><td>文本</td><td>1–30 字符，不允许纯空格</td><td>空</td></tr>
+                <tr><td>三字代码</td><td>文本</td><td>0–4 个字符，自动转大写</td><td>空</td></tr>
+                <tr><td>球队主色</td><td>颜色</td><td>色值；用于缺图占位与字幕色块</td><td>系统色板首项</td></tr>
+                <tr><td>场上人数</td><td>枚举</td><td>5 / 6 / 8 / 11</td><td>11</td></tr>
+                <tr><td>阵型</td><td>枚举</td><td>仅列出与人数匹配的阵型</td><td>该人数默认阵型</td></tr>
+                <tr><td>号码</td><td>整数</td><td>1–99；同一档案内唯一</td><td>空</td></tr>
+                <tr><td>姓名</td><td>文本</td><td>2–20 字符；站位图超 8 字符省略</td><td>空</td></tr>
+                <tr><td>主位置</td><td>枚举</td><td>取自当前人数的位置列表</td><td>空</td></tr>
+                <tr><td>队长</td><td>布尔</td><td>同一档案内最多 1 人为 true</td><td>false</td></tr>
+                <tr><td>照片</td><td>文件</td><td>图片格式；按 1:1 居中裁切</td><td>空（显示号码）</td></tr>
+                <tr><td>槽位位置</td><td>只读</td><td>由阵型定义，不可单独编辑</td><td>—</td></tr>
+                <tr><td>视角</td><td>枚举</td><td>横向 / 纵向</td><td>横向</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>校验顺序与提示</h3>
+          <p>同一时刻只呈现最先命中的一条，避免用户面对一屏错误。定位到具体行或槽位。</p>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>#</th><th>条件</th><th>提示文案</th><th>阻断</th></tr></thead>
+              <tbody>
+                <tr><td>1</td><td>球队全称为空</td><td>请填写球队名称</td><td>是</td></tr>
+                <tr><td>2</td><td>已填人数少于所选人数</td><td>还有 n 名球员未填写</td><td>是（进编排）</td></tr>
+                <tr><td>3</td><td>号码为空或超出 1–99</td><td>第 n 行的号码需在 1–99 之间</td><td>是</td></tr>
+                <tr><td>4</td><td>号码重复</td><td>号码 7 已被张三占用</td><td>是</td></tr>
+                <tr><td>5</td><td>无 GK 主位置的球员</td><td>还没有设置门将</td><td>是</td></tr>
+                <tr><td>6</td><td>队长多于 1 人</td><td>一支球队只能有一名队长</td><td>是（不可发生）</td></tr>
+                <tr><td>7</td><td>存在空槽位</td><td>还有 n 个位置未安排球员</td><td>是（导出）</td></tr>
+                <tr><td>8</td><td>未指定队长</td><td>尚未指定队长</td><td>否</td></tr>
+                <tr><td>9</td><td>存在未上传照片</td><td>n 名球员未上传照片</td><td>否</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="sec">
+          <h3>状态模型</h3>
+          <div class="statusgrid">
+            <div class="s"><b>草稿</b><span>档案已建立，名单未满</span></div>
+            <div class="s"><b>待编排</b><span>名单通过校验，槽位有空</span></div>
+            <div class="s"><b>可导出</b><span>槽位已满且全部通过</span></div>
+            <div class="s"><b>已导出</b><span>已生成图片与 JSON</span></div>
+          </div>
+          <p>状态由数据实时推导，不单独持久化。任何字段变化都会重新推导；从「已导出」变回「可导出」时显示「需重新导出」。</p>
+        </div>
+
+        <div class="sec">
+          <h3>导出规则</h3>
+          <ul>
+            <li>文件命名：<code>{三字代码}_{赛制}_{阵型}.png</code> 与 <code>{三字代码}_{赛制}_{阵型}.json</code>，三字代码为空时用球队名称。</li>
+            <li>图片包含预览中的全部可见元素，不包含选中态、虚线空槽、替补席与操作按钮。</li>
+            <li>JSON 中照片仅保留布尔标记 <code>hasPhoto</code>，不内嵌图片数据。</li>
+            <li>导出不覆盖同名历史文件，由浏览器生成副本命名。</li>
+            <li>目标分辨率与画幅比例。<span class="tbd">[TBD]</span></li>
+          </ul>
+        </div>
+
+        <div class="sec">
+          <h3>异常与降级</h3>
+          <div class="tblwrap">
+            <table>
+              <thead><tr><th>场景</th><th>系统行为</th><th>用户可继续</th></tr></thead>
+              <tbody>
+                <tr><td>照片读取失败</td><td>保留原图，提示文件不可用</td><td>是</td></tr>
+                <tr><td>浏览器不支持导出</td><td>提示改用导出 JSON</td><td>是</td></tr>
+                <tr><td>刷新页面</td><td>当前档案按本地缓存恢复 <span class="tbd">[Assumption, TBD]</span></td><td>是</td></tr>
+                <tr><td>名单人数为 0</td><td>站位图显示空草稿，不开放导出</td><td>是</td></tr>
+                <tr><td>阵型库缺失该人数</td><td>不出现在人数选项中，不做静默回退</td><td>否</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </div><!-- /docbody -->
+  </main>
+</div><!-- /shell -->
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- 阵型库 ---------------- */
+  const mk = (pos,x,y)=>({pos, x, y});
+  const FORMATIONS = {
+    5: {
+      "2-2":   [mk("GK",50,88),mk("LB",32,66),mk("RB",68,66),mk("LST",34,30),mk("RST",66,30)],
+      "1-2-1": [mk("GK",50,88),mk("CB",50,70),mk("LM",26,48),mk("RM",74,48),mk("ST",50,24)],
+      "3-1":   [mk("GK",50,88),mk("LB",24,68),mk("CB",50,68),mk("RB",76,68),mk("ST",50,28)]
+    },
+    6: {
+      "2-2-1": [mk("GK",50,88),mk("LB",28,68),mk("RB",72,68),mk("LCM",30,48),mk("RCM",70,48),mk("ST",50,24)],
+      "1-3-1": [mk("GK",50,88),mk("CB",50,70),mk("LM",18,48),mk("CM",50,48),mk("RM",82,48),mk("ST",50,24)],
+      "3-2":   [mk("GK",50,88),mk("LB",22,68),mk("CB",50,68),mk("RB",78,68),mk("LM",32,44),mk("RM",68,44)],
+      "2-1-2": [mk("GK",50,88),mk("LB",30,70),mk("RB",70,70),mk("CM",50,50),mk("LST",32,26),mk("RST",68,26)]
+    },
+    8: {
+      "3-2-2": [mk("GK",50,88),mk("LB",24,70),mk("CB",50,70),mk("RB",76,70),mk("LCM",34,50),mk("RCM",66,50),mk("LST",34,26),mk("RST",66,26)],
+      "2-3-2": [mk("GK",50,88),mk("LB",32,72),mk("RB",68,72),mk("LM",22,50),mk("CM",50,50),mk("RM",78,50),mk("LST",34,26),mk("RST",66,26)],
+      "3-3-1": [mk("GK",50,88),mk("LB",24,72),mk("CB",50,72),mk("RB",76,72),mk("LM",22,48),mk("CM",50,48),mk("RM",78,48),mk("ST",50,24)],
+      "4-2-1": [mk("GK",50,88),mk("LB",18,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",82,72),mk("LCM",36,48),mk("RCM",64,48),mk("ST",50,24)]
+    },
+    11: {
+      "4-4-2":   [mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LM",14,48),mk("LCM",38,48),mk("RCM",62,48),mk("RM",86,48),mk("LST",38,22),mk("RST",62,22)],
+      "4-3-3":   [mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LCM",30,50),mk("CM",50,54),mk("RCM",70,50),mk("LW",22,26),mk("ST",50,18),mk("RW",78,26)],
+      "4-2-3-1": [mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LDM",38,56),mk("RDM",62,56),mk("LAM",24,34),mk("CAM",50,32),mk("RAM",76,34),mk("ST",50,16)],
+      "4-4-1-1": [mk("GK",50,90),mk("LB",16,72),mk("LCB",38,72),mk("RCB",62,72),mk("RB",84,72),mk("LM",14,50),mk("LCM",38,52),mk("RCM",62,52),mk("RM",86,50),mk("SS",50,32),mk("ST",50,15)],
+      "3-5-2":   [mk("GK",50,90),mk("LCB",28,72),mk("CB",50,74),mk("RCB",72,72),mk("LM",12,52),mk("LCM",34,52),mk("CM",50,56),mk("RCM",66,52),mk("RM",88,52),mk("LST",36,24),mk("RST",64,24)],
+      "5-3-2":   [mk("GK",50,90),mk("LWB",10,66),mk("LCB",28,74),mk("CB",50,76),mk("RCB",72,74),mk("RWB",90,66),mk("LCM",32,50),mk("CM",50,52),mk("RCM",68,50),mk("LST",38,24),mk("RST",62,24)]
+    }
+  };
+
+  const LABEL = {
+    GK:"门将",LB:"左后卫",RB:"右后卫",CB:"中后卫",LCB:"左中卫",RCB:"右中卫",
+    LWB:"左翼卫",RWB:"右翼卫",CDM:"后腰",LDM:"左后腰",RDM:"右后腰",
+    CM:"中前卫",LCM:"左中前卫",RCM:"右中前卫",CAM:"前腰",LAM:"左前腰",RAM:"右前腰",
+    LM:"左前卫",RM:"右前卫",LW:"左边锋",RW:"右边锋",ST:"中锋",LST:"左前锋",RST:"右前锋",SS:"影子前锋",CF:"前锋"
+  };
+  const POS_BY_COUNT = {
+    5:["GK","LB","RB","CB","CM","LM","RM","ST"],
+    6:["GK","LB","RB","CB","LCM","RCM","CM","LM","RM","ST","LST","RST"],
+    8:["GK","LB","RB","CB","LCB","RCB","CDM","LCM","RCM","CM","LM","RM","LW","RW","ST","LST","RST","CAM"],
+    11:["GK","LB","RB","CB","LCB","RCB","LWB","RWB","CDM","LDM","RDM","LCM","RCM","CM","CAM","LAM","RAM","LM","RM","LW","RW","ST","LST","RST","SS","CF"]
+  };
+  const DEFAULT_FORMATION = {5:"2-2",6:"2-2-1",8:"3-2-2",11:"4-4-2"};
+
+  /* ---------------- 状态 ---------------- */
+  const state = {
+    side:"home", name:"上海海港", code:"SHH", color:"#c8102e",
+    count:6, formation:"2-2-1", view:"h", showPhoto:true, showName:true,
+    players:[], slots:[], sel:-1, screen:"setup", exportedAt:null
+  };
+  let pid = 1;
+
+  const $ = s=>document.querySelector(s);
+  const $$ = s=>Array.from(document.querySelectorAll(s));
+  const esc = s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+
+  function emptyPlayer(){ return {id:pid++, num:"", name:"", pos:"", captain:false, photo:null, img:null}; }
+  function emptySlots(){
+    return FORMATIONS[state.count][state.formation].map(s=>({pos:s.pos,x:s.x,y:s.y,pid:null}));
+  }
+  function usedIds(){ return new Set(state.slots.map(s=>s.pid).filter(Boolean)); }
+  function findPlayer(id){ return state.players.find(p=>p.id===id); }
+
+  function toast(msg){
+    const t=$("#toast"); t.textContent=msg; t.classList.add("on");
+    clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove("on"),2200);
+  }
+
+  /* ---------------- 屏幕与标签 ---------------- */
+  const ROUTE = {
+    setup:"/matches/CF-2409/lineup/"+state.side,
+    roster:"/matches/CF-2409/lineup/"+state.side+"/roster",
+    board:"/matches/CF-2409/lineup/"+state.side+"/formation",
+    cast:"/matches/CF-2409/lineup/"+state.side+"/broadcast"
+  };
+  function showScreen(name){
+    state.screen=name;
+    $$(".screen").forEach(s=>s.setAttribute("data-active", String(s.dataset.screen===name)));
+    $$("#stepNav .step").forEach(b=>{
+      b.setAttribute("aria-current", String(b.dataset.goto===name));
+      b.classList.toggle("done", ["setup","roster","board","cast"].indexOf(b.dataset.goto) < ["setup","roster","board","cast"].indexOf(name));
+    });
+    $("#routeText").textContent = ROUTE[name] || ROUTE.setup;
+    if(name==="board") renderBoard();
+    if(name==="cast") renderCast();
+  }
+  function setTab(name){
+    $$(".tab").forEach(b=>b.setAttribute("aria-selected", String(b.dataset.tab===name)));
+    $$(".panel").forEach(p=>p.setAttribute("data-active", String(p.dataset.panel===name)));
+    const pane=document.querySelector(".doc-pane"); if(pane) pane.scrollTop=0;
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
+  function openFeature(id){
+    setTab("detail");
+    const el=document.getElementById(id);
+    if(!el) return;
+    setTimeout(()=>{
+      el.scrollIntoView({behavior:"smooth",block:"start"});
+      el.classList.add("focus");
+      setTimeout(()=>el.classList.remove("focus"),1400);
+    },60);
+  }
+
+  /* ---------------- 人数 / 阵型切换 ---------------- */
+  function playersForCount(n){
+    const keep = state.players.slice(0,n);
+    while(keep.length<n) keep.push(emptyPlayer());
+    return keep;
+  }
+  function setCount(n){
+    if(!FORMATIONS[n]) return;
+    state.count=n;
+    state.formation=DEFAULT_FORMATION[n];
+    state.players=playersForCount(n);
+    state.slots=emptySlots();
+    state.sel=-1;
+    $$("#countSet .pill").forEach(b=>b.setAttribute("aria-pressed", String(+b.dataset.count===n)));
+    fillFormationSelects();
+    renderRoster(); renderBoard(); renderCast(); updateMeta();
+  }
+  function setFormation(f){
+    if(!FORMATIONS[state.count][f]) return;
+    // 保留仍可映射的落位
+    const prev = state.slots.map(s=>({pos:s.pos,pid:s.pid}));
+    state.formation=f;
+    state.slots=emptySlots();
+    prev.forEach(old=>{
+      if(!old.pid) return;
+      const target=state.slots.find(s=>s.pos===old.pos && !s.pid);
+      if(target) target.pid=old.pid;
+    });
+    fillFormationSelects(); renderBoard(); renderCast();
+  }
+  function fillFormationSelects(){
+    const keys=Object.keys(FORMATIONS[state.count]);
+    const opt=keys.map(k=>`<option value="${k}">${k}</option>`).join("");
+    const m=$("#formationSel"), b=$("#boardFormation");
+    if(m){ m.innerHTML=opt; m.value=state.formation; }
+    if(b){ b.innerHTML=opt; b.value=state.formation; }
+    const hint=$("#formationHint");
+    if(hint) hint.textContent=`${state.count} 人制共 ${keys.length} 套阵型；切换阵型会重建槽位并尽量保留已落位球员。`;
+  }
+
+  /* ---------------- 名单渲染 ---------------- */
+  function posOptions(sel){
+    return POS_BY_COUNT[state.count].map(p=>
+      `<option value="${p}"${p===sel?" selected":""}>${p} · ${LABEL[p]||p}</option>`).join("");
+  }
+  function renderRoster(){
+    const list=$("#rosterList");
+    if(!list) return;
+    list.innerHTML = state.players.map((p,i)=>`
+      <div class="prow" data-pid="${p.id}">
+        <div class="num"><input type="number" min="1" max="99" value="${esc(p.num)}" placeholder="#" aria-label="球衣号码"></div>
+        <div class="ph" title="上传照片">
+          ${p.photo?`<img src="${p.photo}" alt="${esc(p.name)}">`:`<span>+照</span>`}
+          <input type="file" accept="image/*" aria-label="上传${esc(p.name||"球员")}照片">
+        </div>
+        <div class="nm"><input type="text" value="${esc(p.name)}" placeholder="球员姓名" aria-label="球员姓名"></div>
+        <div class="pos"><select aria-label="场上位置">
+          <option value=""${p.pos?"":" selected"}>位置</option>${posOptions(p.pos)}
+        </select></div>
+        <div class="cap"><button type="button" aria-pressed="${p.captain}" title="设为队长">C</button></div>
+        <div class="del"><button type="button" title="删除该球员">×</button></div>
+      </div>`).join("");
+    updateMeta();
+  }
+  function updateMeta(){
+    const filled=state.players.filter(p=>String(p.num).trim()!=="" && String(p.name).trim()!=="").length;
+    const m=$("#rosterMeta");
+    if(m) m.textContent=`${state.count} 人制 · 首发 ${state.count} · 已填 ${filled} / ${state.count}`;
+  }
+
+  /* ---------------- 事件：人数 / 阵型 ---------------- */
+  document.addEventListener("click", e=>{
+    const go=e.target.closest("[data-goto]");
+    if(go){
+      const want=go.dataset.goto;
+      if(want==="board" && state.screen==="roster"){
+        if(!validateRoster()) return;
+      }
+      showScreen(want);
+      if(go.dataset.tabOpen) setTab(go.dataset.tabOpen);
+      return;
+    }
+    const link=e.target.closest("[data-link]");
+    if(link){ openFeature(link.dataset.link); return; }
+    const pill=e.target.closest("#countSet .pill");
+    if(pill){ setCount(+pill.dataset.count); return; }
+    const side=e.target.closest("#sideSeg button");
+    if(side){
+      state.side=side.dataset.side;
+      $$("#sideSeg button").forEach(b=>b.setAttribute("aria-pressed", String(b===side)));
+      showScreen(state.screen);
+      return;
+    }
+    const tab=e.target.closest(".tab");
+    if(tab){ setTab(tab.dataset.tab); return; }
+  });
+  /* ---------------- 站位编排 ---------------- */
+  function playerOfSlot(s){ return s.pid ? findPlayer(s.pid) : null; }
+  function isFilled(p){ return p && String(p.name).trim()!=="" && String(p.num).trim()!==""; }
+
+  function slotNode(s,i,opts){
+    const p=playerOfSlot(s);
+    const o=opts||{};
+    const showPhoto=o.showPhoto!==false, showName=o.showName!==false;
+    const bubble = (p && showPhoto && p.photo)
+      ? `<img src="${p.photo}" alt="${esc(p.name)}">`
+      : (p ? esc(p.num||"—") : "＋");
+    const tag = p ? (showName ? esc(p.name) : "&nbsp;") : "";
+    const cap = p && p.captain ? `<span class="capdot">C</span>` : "";
+    return `<div class="slot${p?"":" empty"}${state.sel===i&&o.selectable?" sel":""}" data-slot="${i}" style="left:${s.x}%;top:${s.y}%">
+      <div class="bubble" ${(!p||!showPhoto||!p.photo)?`style="border-color:${state.color}"`:""}>${bubble}${cap}</div>
+      ${tag?`<div class="tag">${tag}</div>`:""}
+      <div class="postag">${s.pos}</div>
+    </div>`;
+  }
+
+  function renderBoard(){
+    const pitch=$("#boardPitch"); if(!pitch) return;
+    pitch.querySelectorAll(".slot").forEach(n=>n.remove());
+    pitch.insertAdjacentHTML("beforeend", state.slots.map((s,i)=>slotNode(s,i,{selectable:true})).join(""));
+
+    const used=usedIds();
+    const bench=$("#benchList");
+    if(bench){
+      const list=state.players.filter(p=>p.name.trim()!=="");
+      bench.innerHTML = list.length
+        ? list.map(p=>`<button class="bp${used.has(p.id)?" used":""}" data-bench="${p.id}"><span class="n">${esc(p.num||"–")}</span>${esc(p.name)}<span class="n">${esc(p.pos||"")}</span></button>`).join("")
+        : `<span class="note" style="margin:0">还没有已命名的球员，先回到录入步骤填写。</span>`;
+    }
+    $("#placedCount").textContent = state.slots.filter(s=>s.pid).length;
+    $("#slotTotal").textContent = state.slots.length;
+    const bm=$("#benchMeta");
+    if(bm) bm.textContent = `${state.players.filter(p=>isFilled(p)).length - used.size} 人`;
+    renderCast();
+  }
+
+  function onSlotClick(i){
+    const s=state.slots[i];
+    if(state.sel===-1){ state.sel=i; renderBoard(); return; }
+    if(state.sel===i){ state.sel=-1; renderBoard(); return; }
+    const a=state.slots[state.sel];
+    if(a.pid && s.pid){
+      const t=a.pid; a.pid=s.pid; s.pid=t;
+      toast("已交换两名球员的位置");
+    }else if(a.pid && !s.pid){
+      s.pid=a.pid; a.pid=null;
+    }else if(!a.pid && s.pid){
+      a.pid=s.pid; s.pid=null;
+    }else{
+      state.sel=i; renderBoard(); return;
+    }
+    state.sel=-1; renderBoard();
+  }
+
+  function placeFromBench(id){
+    if(state.sel===-1){ toast("请先点击一个空槽位，再选择球员"); return; }
+    const slot=state.slots[state.sel];
+    state.slots.forEach(x=>{ if(x.pid===id) x.pid=null; });
+    const out=slot.pid;
+    slot.pid=id;
+    state.sel=-1;
+    renderBoard();
+    if(out){
+      const op=findPlayer(out);
+      toast(`已用 ${findPlayer(id).name} 替换 ${op?op.name:"原球员"}`);
+    }
+  }
+
+  function autoFill(){
+    const assigned=new Set(state.slots.map(s=>s.pid).filter(Boolean));
+    const free=state.players.filter(p=>isFilled(p) && !assigned.has(p.id));
+    state.slots.forEach(s=>{
+      if(s.pid) return;
+      const c=free.find(p=>!assigned.has(p.id) && p.pos===s.pos);
+      if(c){ s.pid=c.id; assigned.add(c.id); }
+    });
+    state.slots.forEach(s=>{
+      if(s.pid) return;
+      const c=free.find(p=>!assigned.has(p.id) && (s.pos==="GK" ? p.pos==="GK" : p.pos!=="GK"));
+      if(c){ s.pid=c.id; assigned.add(c.id); }
+    });
+    state.sel=-1;
+    renderBoard();
+    toast("已按位置优先自动落位，可继续手动调整");
+  }
+
+  function clearSlots(){
+    state.slots.forEach(s=>{s.pid=null;});
+    state.sel=-1; renderBoard();
+  }
+
+  function renderCast(){
+    const pitch=$("#castPitch"); if(!pitch) return;
+    pitch.classList.toggle("vertical", state.view==="v");
+    pitch.querySelectorAll(".slot").forEach(n=>n.remove());
+    pitch.insertAdjacentHTML("beforeend", state.slots.map((s,i)=>slotNode(s,i,{showPhoto:state.showPhoto,showName:state.showName})).join(""));
+    $("#castTeam").textContent = state.name || "未命名球队";
+    $("#castMeta").textContent = `${state.count} 人制 · ${state.formation} · ${state.side==="home"?"主队":"客队"}`;
+    $("#castBadge").textContent = state.exportedAt ? "EXPORTED" : "PRE-MATCH";
+    const missing=state.slots.filter(s=>!s.pid).length;
+    const note=$("#castNote");
+    if(note) note.textContent = missing
+      ? `草稿态：还有 ${missing} 个位置未安排球员，此时不能导出图片。`
+      : "画面已完整，可直接导出；导出内容与预览一致。";
+    const btn=$("#btnExportPng");
+    if(btn) btn.disabled = missing>0 || !state.name.trim();
+  }
+
+  /* ---------------- 名单输入事件 ---------------- */
+  document.addEventListener("input", e=>{
+    const row=e.target.closest("#rosterList .prow"); if(!row) return;
+    const p=findPlayer(+row.dataset.pid); if(!p) return;
+    if(e.target.type==="number") p.num=e.target.value.replace(/[^\d]/g,"").slice(0,2);
+    else if(e.target.tagName==="SELECT") p.pos=e.target.value;
+    else p.name=e.target.value;
+    row.classList.remove("bad");
+    updateMeta();
+  });
+
+  document.addEventListener("change", e=>{
+    const row=e.target.closest("#rosterList .prow");
+    if(row && e.target.tagName==="SELECT"){
+      const p=findPlayer(+row.dataset.pid);
+      if(p) p.pos=e.target.value;
+      return;
+    }
+    if(e.target.matches(".ph input[type=file]")){
+      const r=e.target.closest(".prow"); const p=findPlayer(+r.dataset.pid);
+      const f=e.target.files && e.target.files[0];
+      if(!p || !f) return;
+      if(!f.type.startsWith("image/")){ toast("该文件无法作为照片使用"); e.target.value=""; return; }
+      const reader=new FileReader();
+      reader.onload=()=>{
+        p.photo=reader.result;
+        const im=new Image(); im.src=p.photo; p.img=im;
+        const box=e.target.closest(".ph");
+        box.innerHTML=`<img src="${p.photo}" alt="${esc(p.name)}"><input type="file" accept="image/*" aria-label="替换照片">`;
+        toast("照片已更新");
+      };
+      reader.onerror=()=>toast("照片读取失败，请换一张图片");
+      reader.readAsDataURL(f);
+    }
+  });
+
+  document.addEventListener("click", e=>{
+    const row=e.target.closest("#rosterList .prow");
+    if(row){
+      const p=findPlayer(+row.dataset.pid);
+      if(e.target.closest(".cap")){
+        const next=!p.captain;
+        state.players.forEach(x=>x.captain=false);
+        p.captain=next;
+        renderRoster();
+        toast(next?`${p.name||"该球员"} 已设为队长`:"已取消队长标记");
+        return;
+      }
+      if(e.target.closest(".del")){
+        state.slots.forEach(s=>{ if(s.pid===p.id) s.pid=null; });
+        state.players=state.players.filter(x=>x.id!==p.id);
+        renderRoster(); renderBoard();
+        toast("已删除该球员，如已落位则槽位同时清空");
+        return;
+      }
+    }
+    const slot=e.target.closest("#boardPitch .slot");
+    if(slot){ onSlotClick(+slot.dataset.slot); return; }
+    const bench=e.target.closest("[data-bench]");
+    if(bench){ placeFromBench(+bench.dataset.bench); return; }
+  });
+
+  /* ---------------- 校验 ---------------- */
+  function markBad(ids){
+    $$("#rosterList .prow").forEach(r=>r.classList.toggle("bad", ids.includes(+r.dataset.pid)));
+  }
+  function validateRoster(){
+    const err=$("#rosterErr"), warn=$("#rosterWarn");
+    const fail=m=>{ err.textContent=m; err.classList.add("on"); return false; };
+    err.classList.remove("on"); warn.classList.remove("on"); markBad([]);
+
+    if(!state.name.trim()) return fail("请填写球队名称");
+
+    const filled=state.players.filter(isFilled);
+    if(filled.length<state.count){
+      const empties=state.players.filter(p=>!isFilled(p)).map(p=>p.id);
+      markBad(empties);
+      return fail(`还有 ${state.count-filled.length} 名球员未填写`);
+    }
+    const badNum=filled.find(p=>{const n=+p.num; return !n || n<1 || n>99;});
+    if(badNum){ markBad([badNum.id]); return fail(`第 ${state.players.indexOf(badNum)+1} 行的号码需在 1–99 之间`); }
+    const seen={}; let dup=null, dupOf=null;
+    filled.forEach(p=>{ const n=p.num.trim(); if(seen[n]){dup=p;dupOf=seen[n];} else seen[n]=p; });
+    if(dup){ markBad([dup.id]); return fail(`号码 ${dup.num} 已被 ${dupOf.name} 占用`); }
+    if(!filled.some(p=>p.pos==="GK")){ markBad(filled.filter(p=>!p.pos).map(p=>p.id)); return fail("还没有设置门将，请把一位球员的主位置设为 GK"); }
+    if(filled.filter(p=>p.captain).length>1) return fail("一支球队只能有一名队长");
+
+    const w=[];
+    if(!filled.some(p=>p.captain)) w.push("尚未指定队长");
+    const noPhoto=filled.filter(p=>!p.photo).length;
+    if(noPhoto) w.push(`${noPhoto} 名球员未上传照片（将显示号码占位）`);
+    if(w.length){ warn.textContent=w.join("；"); warn.classList.add("on"); }
+    return true;
+  }
+
+  /* ---------------- 导出 ---------------- */
+  function download(name, blobOrUrl, isUrl){
+    const a=document.createElement("a");
+    a.href = isUrl ? blobOrUrl : URL.createObjectURL(blobOrUrl);
+    a.download=name;
+    document.body.appendChild(a); a.click(); a.remove();
+    if(!isUrl) setTimeout(()=>URL.revokeObjectURL(a.href),1500);
+  }
+  function fileName(ext){ return `${state.code||state.name||"team"}_${state.count}人制_${state.formation}.${ext}`; }
+
+  function paintCard(){
+    const vw = state.view==="h" ? 1600 : 1050;
+    const vh = state.view==="h" ? 1000 : 1600;
+    const c=document.createElement("canvas"); c.width=vw; c.height=vh;
+    const ctx=c.getContext("2d");
+    const g=ctx.createLinearGradient(0,0,vw,vh);
+    g.addColorStop(0,"#1b6b3a"); g.addColorStop(1,"#12452a");
+    ctx.fillStyle=g; ctx.fillRect(0,0,vw,vh);
+
+    const pad=Math.round(Math.min(vw,vh)*0.075);
+    const pw=vw-pad*2, ph=vh-pad*2;
+    ctx.fillStyle="rgba(255,255,255,.05)";
+    for(let i=0;i<10;i++){ if(i%2===0) ctx.fillRect(pad, pad+i*ph/10, pw, ph/10); }
+    ctx.strokeStyle="rgba(255,255,255,.55)"; ctx.lineWidth=3;
+    ctx.strokeRect(pad,pad,pw,ph);
+    ctx.beginPath(); ctx.moveTo(pad,pad+ph/2); ctx.lineTo(pad+pw,pad+ph/2); ctx.stroke();
+    ctx.beginPath(); ctx.arc(pad+pw/2,pad+ph/2,Math.min(pw,ph)*0.13,0,Math.PI*2); ctx.stroke();
+    const bw=pw*0.56, bh=ph*0.15;
+    ctx.strokeRect(pad+(pw-bw)/2, pad, bw, bh);
+    ctx.strokeRect(pad+(pw-bw)/2, pad+ph-bh, bw, bh);
+
+    const r=Math.round(Math.min(vw,vh)*0.048);
+    state.slots.forEach(s=>{
+      const p=playerOfSlot(s);
+      const px=pad+s.x/100*pw, py=pad+s.y/100*ph;
+      ctx.save();
+      ctx.beginPath(); ctx.arc(px,py,r,0,Math.PI*2);
+      ctx.fillStyle="#0a0f0d"; ctx.fill();
+      ctx.lineWidth=4; ctx.strokeStyle="rgba(255,255,255,.8)"; ctx.stroke();
+      ctx.clip();
+      if(p && state.showPhoto && p.photo && p.img && p.img.complete){
+        const iw=p.img.naturalWidth, ih=p.img.naturalHeight;
+        const side=Math.min(iw,ih);
+        ctx.drawImage(p.img,(iw-side)/2,(ih-side)/2,side,side,px-r,py-r,r*2,r*2);
+      }else if(p){
+        ctx.fillStyle=state.color; ctx.fill();
+        ctx.fillStyle="#fff"; ctx.font=`700 ${Math.round(r*0.95)}px ui-monospace,monospace`;
+        ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText(p.num||"-",px,py+1);
+      }else{
+        ctx.fillStyle="rgba(7,18,12,.5)"; ctx.fill();
+      }
+      ctx.restore();
+
+      if(p && p.captain){
+        const cx=px+r*0.72, cy=py-r*0.72;
+        ctx.beginPath(); ctx.arc(cx,cy,r*0.34,0,Math.PI*2);
+        ctx.fillStyle="#f2c94c"; ctx.fill();
+        ctx.lineWidth=2; ctx.strokeStyle="#231c00"; ctx.stroke();
+        ctx.fillStyle="#231c00"; ctx.font=`800 ${Math.round(r*0.4)}px ui-monospace,monospace`;
+        ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("C",cx,cy+1);
+      }
+      if(p && state.showName){
+        ctx.font=`600 ${Math.round(r*0.55)}px -apple-system,"PingFang SC",sans-serif`;
+        ctx.textAlign="center"; ctx.textBaseline="top";
+        const label=p.name.length>8?p.name.slice(0,8)+"…":p.name;
+        ctx.fillStyle="rgba(7,18,12,.85)";
+        const tw=ctx.measureText(label).width;
+        ctx.fillRect(px-tw/2-7, py+r+6, tw+14, r*0.78);
+        ctx.fillStyle="#fff"; ctx.fillText(label,px,py+r+9);
+      }
+      ctx.fillStyle="rgba(230,242,234,.85)";
+      ctx.font=`600 ${Math.round(r*0.42)}px ui-monospace,monospace`;
+      ctx.textAlign="center"; ctx.textBaseline="top";
+      ctx.fillText(s.pos,px,py+r+r*0.9+4);
+    });
+
+    // 信息条
+    const bh2=Math.round(vh*0.1);
+    const lg=ctx.createLinearGradient(0,vh-bh2,0,vh);
+    lg.addColorStop(0,"rgba(4,10,7,0)"); lg.addColorStop(.5,"rgba(4,10,7,.92)");
+    ctx.fillStyle=lg; ctx.fillRect(0,vh-bh2,vw,bh2);
+    ctx.fillStyle=state.color; ctx.fillRect(pad,vh-bh2*0.62,10,bh2*0.5);
+    ctx.textAlign="left"; ctx.textBaseline="alphabetic";
+    ctx.fillStyle="#fff"; ctx.font=`700 ${Math.round(vh*0.035)}px -apple-system,"PingFang SC",sans-serif`;
+    ctx.fillText(state.name||"未命名球队", pad+22, vh-bh2*0.3);
+    ctx.fillStyle="rgba(169,196,180,.95)"; ctx.font=`500 ${Math.round(vh*0.022)}px ui-monospace,monospace`;
+    ctx.fillText(`${state.code||"---"}  ·  ${state.count} 人制  ·  ${state.formation}  ·  ${state.side==="home"?"主队":"客队"}`, pad+22, vh-bh2*0.12);
+    ctx.textAlign="right"; ctx.fillStyle="#f2c94c"; ctx.font=`700 ${Math.round(vh*0.02)}px ui-monospace,monospace`;
+    ctx.fillText("PRE-MATCH", vw-pad, vh-bh2*0.18);
+    return c;
+  }
+
+  function exportPng(){
+    const missing=state.slots.filter(s=>!s.pid).length;
+    if(missing){ toast(`还有 ${missing} 个位置未安排球员，无法导出`); return; }
+    try{
+      const c=paintCard();
+      c.toBlob(b=>{
+        if(!b){ toast("导出失败，可改用导出名单 JSON"); return; }
+        download(fileName("png"), b);
+        state.exportedAt=new Date();
+        renderCast();
+        toast("站位图已导出");
+      },"image/png");
+    }catch(err){
+      toast("导出失败，可改用导出名单 JSON");
+    }
+  }
+
+  function exportJson(){
+    const data={
+      matchId:"CF-2409", side:state.side, team:{name:state.name,code:state.code,color:state.color},
+      format:{playersOnField:state.count,formation:state.formation},
+      players:state.players.filter(isFilled).map(p=>({number:+p.num,name:p.name,position:p.pos,captain:p.captain,hasPhoto:!!p.photo})),
+      slots:state.slots.map((s,i)=>({index:i,position:s.pos,x:s.x,y:s.y,playerNumber:(playerOfSlot(s)?+playerOfSlot(s).num:null)}))
+    };
+    download(fileName("json"), new URL("data:application/json;charset=utf-8,"+encodeURIComponent(JSON.stringify(data,null,2))), true);
+    toast("名单 JSON 已导出");
+  }
+
+  /* ---------------- 示例与视图模式 ---------------- */
+  function loadDemo(){
+    const demo=[
+      {num:"1",name:"颜骏凌",pos:"GK"},{num:"4",name:"王燊超",pos:"LB"},
+      {num:"5",name:"张琳芃",pos:"RB"},{num:"6",name:"蔡慧康",pos:"LCM"},
+      {num:"8",name:"奥斯卡",pos:"RCM",captain:true},{num:"7",name:"武磊",pos:"ST"}
+    ].slice(0,state.count);
+    state.players=playersForCount(state.count);
+    state.players.forEach((p,i)=>{ const d=demo[i]; if(!d) return; p.num=d.num; p.name=d.name; p.pos=d.pos; p.captain=!!d.captain; });
+    state.slots=emptySlots();
+    state.sel=-1;
+    renderRoster(); renderBoard(); autoFill();
+    showScreen("roster");
+    toast("已载入示例名单，可继续补齐其余信息");
+  }
+
+  function setMode(text){
+    document.body.classList.toggle("textmode", text);
+    $("#modeSplit").setAttribute("aria-pressed", String(!text));
+    $("#modeText").setAttribute("aria-pressed", String(text));
+    if(text){
+      $$(".panel").forEach(p=>p.removeAttribute("data-active"));
+    }else{
+      const cur=$$(".tab").find(b=>b.getAttribute("aria-selected")==="true");
+      $$(".panel").forEach(p=>p.setAttribute("data-active", String(p.dataset.panel===(cur?cur.dataset.tab:"overview"))));
+    }
+  }
+
+  /* ---------------- 初始化 ---------------- */
+  function init(){
+    state.players=playersForCount(state.count);
+    state.slots=emptySlots();
+    fillFormationSelects();
+    renderRoster(); renderBoard(); renderCast();
+    showScreen("setup");
+
+    $("#formationSel").addEventListener("change", e=>setFormation(e.target.value));
+    $("#boardFormation").addEventListener("change", e=>setFormation(e.target.value));
+    $("#teamName").addEventListener("input", e=>{ state.name=e.target.value; renderCast(); });
+    $("#teamCode").addEventListener("input", e=>{ state.code=e.target.value.toUpperCase(); });
+    $("#kitColor").addEventListener("input", e=>{ state.color=e.target.value; renderBoard(); renderCast(); });
+    $("#btnToBoard").addEventListener("click", ()=>{ if(validateRoster()) showScreen("board"); });
+    $("#btnToCast").addEventListener("click", ()=>{
+      if(state.slots.some(s=>!s.pid)){ toast("还有空槽位，可先导出草稿到预览，但图片需补齐后才能导出"); }
+      showScreen("cast");
+    });
+    $("#btnAutoFill").addEventListener("click", autoFill);
+    $("#btnClearSlots").addEventListener("click", clearSlots);
+    $("#btnAddPlayer").addEventListener("click", ()=>{ state.players.push(emptyPlayer()); renderRoster(); toast("已增加一行球员"); });
+    $("#btnPaste").addEventListener("click", ()=>toast("批量粘贴为 P1 能力，本原型未开启"));
+    $("#btnPush").addEventListener("click", ()=>toast("本期未接入导播台，请使用导出文件"));
+    $("#btnDemo").addEventListener("click", loadDemo);
+    $("#btnExportPng").addEventListener("click", exportPng);
+    $("#btnExportJson").addEventListener("click", exportJson);
+    $("#btnExportPng").disabled=true;
+
+    $$("[data-view]").forEach(b=>b.addEventListener("click",()=>{
+      state.view=b.dataset.view;
+      $$("[data-view]").forEach(x=>x.setAttribute("aria-pressed",String(x===b)));
+      renderCast();
+    }));
+    $("#tgPhoto").addEventListener("change", e=>{ state.showPhoto=e.target.checked; renderCast(); });
+    $("#tgName").addEventListener("change", e=>{ state.showName=e.target.checked; renderCast(); });
+    $("#modeSplit").addEventListener("click", ()=>setMode(false));
+    $("#modeText").addEventListener("click", ()=>setMode(true));
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,17 @@
+# 工具临时产物，不纳入版本管理
+.screenshots/
+.trae-html-share-packages/
+
+# 依赖与构建产物
+node_modules/
+app/node_modules/
+app/dist/
+
+# 服务端运行数据与虚拟环境
+server/data/
+server/.venv/
+__pycache__/
+*.pyc
+
+# 本地系统与编辑器
+.DS_Store
