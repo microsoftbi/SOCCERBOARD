@@ -6,10 +6,37 @@ import type {
   Match,
   MatchSide,
   Player,
+  ScoreEvent,
   Slot,
   Team,
   ViewMode,
 } from './types';
+
+/** 比分限制在 0~99 的整数 */
+function normalizeScore(v: unknown): number {
+  const n = Math.trunc(Number(v));
+  return Number.isFinite(n) ? Math.min(99, Math.max(0, n)) : 0;
+}
+
+/** 步骤上限为 5（已移除「站位编排」）；旧的第 6 步「比分板」改为第 3 步 */
+function normalizeStep(v: unknown): number {
+  const n = Math.trunc(Number(v) || 1);
+  if (n >= 6) return 3;
+  return Math.min(5, Math.max(1, n));
+}
+
+
+function normalizeScoreLog(raw: unknown): ScoreEvent[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((e) => e && typeof e === 'object')
+    .map((e, i) => ({
+      id: Number(e.id) > 0 ? Math.trunc(Number(e.id)) : i + 1,
+      home: normalizeScore(e.home),
+      away: normalizeScore(e.away),
+      at: Number.isFinite(Number(e.at)) ? Number(e.at) : Date.now(),
+    }));
+}
 
 export interface LegacySnapshot {
   v?: number;
@@ -36,7 +63,17 @@ function nowIso(): string {
 }
 
 export function defaultUi(): MatchSide['ui'] {
-  return { step: 1, view: 'h', showPhoto: true, showName: true };
+  return {
+    step: 1,
+    view: 'h',
+    showPhoto: true,
+    showName: true,
+    ptwPid: 0,
+    ptwText: '',
+    ptwHide: false,
+    scoreNameMode: 'code',
+    scoreName: '',
+  };
 }
 
 export function emptyLibrary(): LibraryData {
@@ -108,10 +145,18 @@ function normalizeSide(raw: Partial<MatchSide> | undefined, count: number, forma
     slots,
     bench: Array.isArray(raw?.bench) ? raw!.bench.filter((x) => typeof x === 'number') : [],
     ui: {
-      step: Math.min(4, Math.max(1, Number(raw?.ui?.step) || 1)),
+      step: normalizeStep(raw?.ui?.step),
       view: raw?.ui?.view === 'v' ? 'v' : 'h',
       showPhoto: raw?.ui?.showPhoto !== false,
       showName: raw?.ui?.showName !== false,
+      ptwPid: Number(raw?.ui?.ptwPid) || 0,
+      ptwText: String(raw?.ui?.ptwText ?? ''),
+      ptwHide: raw?.ui?.ptwHide === true,
+      scoreNameMode:
+        raw?.ui?.scoreNameMode === 'full' || raw?.ui?.scoreNameMode === 'custom'
+          ? raw.ui.scoreNameMode
+          : 'code',
+      scoreName: String(raw?.ui?.scoreName ?? '').slice(0, 20),
     },
   };
 }
@@ -158,6 +203,10 @@ export function normalizeLibrary(raw: unknown): LibraryData {
             status: m.status === 'ready' ? 'ready' : 'draft',
             exportedAt: typeof m.exportedAt === 'number' ? m.exportedAt : null,
             createdAt: String(m.createdAt || new Date().toISOString()),
+            scoreTitle: String(m.scoreTitle ?? ''),
+            scoreHome: normalizeScore(m.scoreHome),
+            scoreAway: normalizeScore(m.scoreAway),
+            scoreLog: normalizeScoreLog(m.scoreLog),
             home: normalizeSide(m.home, count, homeFormation),
             away: normalizeSide(m.away, count, awayFormation),
           };
@@ -212,12 +261,12 @@ export function legacyToLibrary(raw: LegacySnapshot): LibraryData {
   const homeUi = defaultUi();
   const awayUi = defaultUi();
   if (selected === 'home') {
-    homeUi.step = Math.min(4, Math.max(1, Number(raw.ui?.step) || 1));
+    homeUi.step = normalizeStep(raw.ui?.step);
     homeUi.view = raw.ui?.view === 'v' ? 'v' : 'h';
     homeUi.showPhoto = raw.ui?.showPhoto !== false;
     homeUi.showName = raw.ui?.showName !== false;
   } else {
-    awayUi.step = Math.min(4, Math.max(1, Number(raw.ui?.step) || 1));
+    awayUi.step = normalizeStep(raw.ui?.step);
     awayUi.view = raw.ui?.view === 'v' ? 'v' : 'h';
     awayUi.showPhoto = raw.ui?.showPhoto !== false;
     awayUi.showName = raw.ui?.showName !== false;
@@ -235,6 +284,10 @@ export function legacyToLibrary(raw: LegacySnapshot): LibraryData {
     status: 'draft',
     exportedAt: legacyHome.exportedAt || null,
     createdAt: new Date().toISOString(),
+    scoreTitle: '',
+    scoreHome: 0,
+    scoreAway: 0,
+    scoreLog: [],
     home: {
       slots: slots.length ? slots : slotsFor(count, formation),
       bench: benchOf(home.players, slots),

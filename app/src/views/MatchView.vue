@@ -32,7 +32,8 @@
     <StepNav />
     <StepSetup v-if="ui.step === 1" />
     <StepRoster v-else-if="ui.step === 2" />
-    <StepBoard v-else-if="ui.step === 3" />
+    <StepScoreboard v-else-if="ui.step === 3" />
+    <StepPlayerWatch v-else-if="ui.step === 4" />
     <StepCast v-else />
   </div>
 </template>
@@ -46,7 +47,8 @@ import { fmtTime } from '../core/utils';
 import StepNav from '../components/StepNav.vue';
 import StepSetup from '../components/StepSetup.vue';
 import StepRoster from '../components/StepRoster.vue';
-import StepBoard from '../components/StepBoard.vue';
+import StepPlayerWatch from '../components/StepPlayerWatch.vue';
+import StepScoreboard from '../components/StepScoreboard.vue';
 import StepCast from '../components/StepCast.vue';
 
 const sides: Array<{ value: Side; label: string }> = [

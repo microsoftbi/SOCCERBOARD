@@ -47,17 +47,39 @@ export interface Slot {
   pid: number | null;
 }
 
+/** 比分板队名显示方式 */
+export type ScoreNameMode = 'code' | 'full' | 'custom';
+
 export interface SideUi {
   step: number;
   view: ViewMode;
   showPhoto: boolean;
   showName: boolean;
+  /** PLAYER TO WATCH：本侧选中球员 id（0 表示未选） */
+  ptwPid: number;
+  /** PLAYER TO WATCH：本侧看点介绍 */
+  ptwText: string;
+  /** PLAYER TO WATCH：本侧不展示 */
+  ptwHide: boolean;
+  /** 比分板：队名显示方式（英文缩写 / 完整队名 / 自定义） */
+  scoreNameMode: ScoreNameMode;
+  /** 比分板：自定义队名（仅 scoreNameMode 为 custom 时使用） */
+  scoreName: string;
 }
 
 export interface MatchSide {
   slots: Slot[];
   bench: number[];
   ui: SideUi;
+}
+
+/** 比分变化记录：记录一次比分快照 */
+export interface ScoreEvent {
+  id: number;
+  home: number;
+  away: number;
+  /** 记录时刻（毫秒时间戳） */
+  at: number;
 }
 
 export interface Match {
@@ -73,6 +95,12 @@ export interface Match {
   status: 'draft' | 'ready';
   exportedAt: number | null;
   createdAt: string;
+  /** 比分板顶部小字（留空则不画该行） */
+  scoreTitle: string;
+  scoreHome: number;
+  scoreAway: number;
+  /** 比分变化记录，按记录顺序追加 */
+  scoreLog: ScoreEvent[];
   home: MatchSide;
   away: MatchSide;
 }

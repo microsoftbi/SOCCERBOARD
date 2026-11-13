@@ -10,6 +10,7 @@ import type {
   LineupTeam,
   Match,
   Player,
+  ScoreNameMode,
   Side,
   Slot,
   Team,
@@ -124,7 +125,9 @@ export function cur(): LineupTeam {
 
 export function activeUi() {
   const m = activeMatch();
-  return m ? m[state.side].ui : { step: 1, view: 'h' as ViewMode, showPhoto: true, showName: true };
+  return m
+    ? m[state.side].ui
+    : { step: 1, view: 'h' as ViewMode, showPhoto: true, showName: true, ptwPid: 0, ptwText: '', ptwHide: false, scoreNameMode: 'code' as ScoreNameMode, scoreName: '' };
 }
 
 export function activeValidation(): ValidationResult {
@@ -297,8 +300,12 @@ export function createMatch(input: NewMatchInput): Match | null {
     status: 'draft',
     exportedAt: null,
     createdAt: new Date().toISOString(),
-    home: { slots: slotsFor(count, homeFormation), bench: [], ui: { step: 1, view: 'h', showPhoto: true, showName: true } },
-    away: { slots: slotsFor(count, awayFormation), bench: [], ui: { step: 1, view: 'h', showPhoto: true, showName: true } },
+    scoreTitle: [input.competition.trim(), input.date].filter(Boolean).join(' · '),
+    scoreHome: 0,
+    scoreAway: 0,
+    scoreLog: [],
+    home: { slots: slotsFor(count, homeFormation), bench: [], ui: { step: 1, view: 'h', showPhoto: true, showName: true, ptwPid: 0, ptwText: '', ptwHide: false, scoreNameMode: 'code', scoreName: '' } },
+    away: { slots: slotsFor(count, awayFormation), bench: [], ui: { step: 1, view: 'h', showPhoto: true, showName: true, ptwPid: 0, ptwText: '', ptwHide: false, scoreNameMode: 'code', scoreName: '' } },
   };
   state.matches = [...state.matches, match];
   state.activeMatchId = id;
@@ -392,18 +399,10 @@ export function switchSide(side: Side): void {
 export function goStep(step: number): void {
   const m = activeMatch();
   if (!m) return;
-  const target = Math.min(4, Math.max(1, step));
-  const ui = m[state.side].ui;
-  if (target >= 3 && target > ui.step) {
-    const v = validateLineup(lineup());
-    if (!v.ok) {
-      state.showRosterError = true;
-      notify(v.errors[0]);
-      return;
-    }
-    state.showRosterError = false;
-  }
-  ui.step = target;
+  const target = Math.min(5, Math.max(1, step));
+  /* 已移除「站位编排」步骤：进入后续步骤时自动落位，保证站位图可用 */
+  if (target >= 3) ensureAutoLineup();
+  m[state.side].ui.step = target;
   resetSelection();
   queueSave();
 }
@@ -419,6 +418,94 @@ export function toggleFlag(key: 'showPhoto' | 'showName'): void {
   const m = activeMatch();
   if (!m) return;
   m[state.side].ui[key] = !m[state.side].ui[key];
+  queueSave();
+}
+
+/** PLAYER TO WATCH：按主客方保存选中球员与看点文本 */
+export function setPlayerWatch(
+  side: Side,
+  patch: { ptwPid?: number; ptwText?: string; ptwHide?: boolean },
+): void {
+  const m = activeMatch();
+  if (!m) return;
+  const ui = m[side].ui;
+  if (patch.ptwPid !== undefined) ui.ptwPid = patch.ptwPid;
+  if (patch.ptwText !== undefined) ui.ptwText = patch.ptwText;
+  if (patch.ptwHide !== undefined) ui.ptwHide = patch.ptwHide;
+  queueSave();
+}
+
+/* ---------- 比分板 ---------- */
+
+/** 顶部小字，留空则不显示该行 */
+export function setScoreTitle(text: string): void {
+  const m = activeMatch();
+  if (!m) return;
+  m.scoreTitle = text;
+  queueSave();
+}
+
+/** 直接设置某方比分（限制 0~99） */
+export function setScore(side: Side, value: number): void {
+  const m = activeMatch();
+  if (!m) return;
+  const n = Math.min(99, Math.max(0, Math.trunc(Number(value) || 0)));
+  if (side === 'home') m.scoreHome = n;
+  else m.scoreAway = n;
+  queueSave();
+}
+
+/** 加/减某方比分 */
+export function adjustScore(side: Side, delta: number): void {
+  const m = activeMatch();
+  if (!m) return;
+  setScore(side, (side === 'home' ? m.scoreHome : m.scoreAway) + delta);
+}
+
+/** 记录当前比分；与上一条相同时不重复记录 */
+export function recordScore(): boolean {
+  const m = activeMatch();
+  if (!m) return false;
+  const last = m.scoreLog[m.scoreLog.length - 1];
+  if (last && last.home === m.scoreHome && last.away === m.scoreAway) {
+    notify('比分未变化，未新增记录');
+    return false;
+  }
+  const id = m.scoreLog.reduce((max, e) => Math.max(max, e.id), 0) + 1;
+  m.scoreLog.push({ id, home: m.scoreHome, away: m.scoreAway, at: Date.now() });
+  queueSave(0);
+  notify(`已记录比分 ${m.scoreHome} : ${m.scoreAway}`);
+  return true;
+}
+
+/** 撤销最后一条记录（比分保持不变） */
+export function undoScoreRecord(): void {
+  const m = activeMatch();
+  if (!m || !m.scoreLog.length) return;
+  m.scoreLog.pop();
+  queueSave();
+}
+
+export function clearScoreLog(): void {
+  const m = activeMatch();
+  if (!m) return;
+  m.scoreLog.splice(0, m.scoreLog.length);
+  queueSave();
+}
+
+/** 比分板：设置某方队名显示方式 */
+export function setScoreNameMode(side: Side, mode: ScoreNameMode): void {
+  const m = activeMatch();
+  if (!m) return;
+  m[side].ui.scoreNameMode = mode;
+  queueSave();
+}
+
+/** 比分板：设置某方自定义队名 */
+export function setScoreName(side: Side, text: string): void {
+  const m = activeMatch();
+  if (!m) return;
+  m[side].ui.scoreName = text.slice(0, 20);
   queueSave();
 }
 
@@ -678,11 +765,11 @@ export function removeFromBench(pid: number): void {
   queueSave();
 }
 
-export function autoFillLineup(): void {
-  const m = activeMatch();
-  const team = teamForSide(state.side);
-  if (!m || !team) return;
-  const sideData = m[state.side];
+/** 按位置把名单里未落位的球员补进空槽位，不改变已落位球员 */
+function autoFillSide(side: 'home' | 'away', m: Match): void {
+  const team = teamForSide(side, m);
+  if (!team) return;
+  const sideData = m[side];
   const placed = new Set(sideData.slots.filter((s) => s.pid != null).map((s) => s.pid!));
   const candidates = team.players.filter((p) => isFilled(p) && !placed.has(p.id));
   for (const slot of sideData.slots) {
@@ -695,6 +782,20 @@ export function autoFillLineup(): void {
     slot.pid = p.id;
   }
   sideData.bench = sideData.bench.filter((pid) => !sideData.slots.some((s) => s.pid === pid));
+}
+
+/** 主客队同时自动落位（进入比分板 / 播出等步骤时调用） */
+export function ensureAutoLineup(): void {
+  const m = activeMatch();
+  if (!m) return;
+  autoFillSide('home', m);
+  autoFillSide('away', m);
+}
+
+export function autoFillLineup(): void {
+  const m = activeMatch();
+  if (!m) return;
+  autoFillSide(state.side, m);
   resetSelection();
   queueSave();
 }

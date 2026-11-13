@@ -2,19 +2,33 @@
   <section class="card">
     <div class="hd">
       <div>
-        <h2>{{ tab === 'board' ? '播出站位图' : tab === 'show' ? '队员介绍' : '队员介绍2' }} · {{ t.name.trim() || '未命名' }}</h2>
+        <h2>{{ tabTitle }} · {{ t.name.trim() || '未命名' }}</h2>
         <p v-if="tab === 'board'">
           预览画面即导出画面，{{ ui.view === 'h' ? '横向 1920 × 1440' : '纵向 1080 × 1920（竖屏播出 / 更衣室大屏）' }}。点击「播放动画」预览入场效果，动画可导出为 MP4 / WebM 视频；导出 PNG 为完整静态画面。
         </p>
         <p v-else-if="tab === 'show'">
           转播风格介绍页：左侧名单自门将向锋线逐行入场，中间竖版球场的号码标记与名单同步高亮，右侧展示当前球员的大图或视频。点击任意一行即可切换介绍对象。
         </p>
-        <p v-else>
+        <p v-else-if="tab === 'group'">
           合影介绍页：1920 × 1080 横版画面，按守门员 → 后卫 → 中场 → 前场的顺序分组展示，组内人数随阵型自动变化，左侧小球场同步高亮本组球员。
+        </p>
+        <p v-else-if="tab === 'score'">
+          比分变化：按第 3 步「比分板」记录的顺序逐条播放，得分方队色带高亮、比分数字回弹，可导出整段实底视频。
+        </p>
+        <p v-else>
+          PLAYER TO WATCH：并排展示主客两队各一名重点球员，照片下方为本场看点介绍。1920 × 1080 横版，可导出 PNG 或 8 秒入场视频。
         </p>
       </div>
       <span class="chipstat" :class="{ ok: canExport }">
-        {{ tab === 'board' ? (canExport ? '可导出' : '草稿') : `${t.count} 人制 · ${t.formation}` }}
+        {{
+          tab === 'board'
+            ? canExport
+              ? '可导出'
+              : '草稿'
+            : tab === 'score'
+              ? `${scoreCount} 次变化`
+              : `${t.count} 人制 · ${t.formation}`
+        }}
       </span>
     </div>
     <div class="castctl">
@@ -27,6 +41,12 @@
         </button>
         <button type="button" :aria-pressed="tab === 'group' ? 'true' : 'false'" @click="tab = 'group'">
           队员介绍2
+        </button>
+        <button type="button" :aria-pressed="tab === 'watch' ? 'true' : 'false'" @click="tab = 'watch'">
+          PLAYER TO WATCH
+        </button>
+        <button type="button" :aria-pressed="tab === 'score' ? 'true' : 'false'" @click="tab = 'score'">
+          比分变化
         </button>
       </div>
       <template v-if="tab === 'board'">
@@ -79,9 +99,11 @@
       <div v-if="v.warnings.length && canExport" class="warnbox on">{{ v.warnings.join('；') }}</div>
     </template>
     <StepShowcase v-else-if="tab === 'show'" />
-    <StepLineupShot v-else />
+    <StepLineupShot v-else-if="tab === 'group'" />
+    <ScoreChangeShot v-else-if="tab === 'score'" />
+    <PlayerWatchShot v-else />
     <div class="btnrow">
-      <button class="btn ghost" @click="goStep(3)">上一步</button>
+      <button class="btn ghost" @click="goStep(4)">上一步</button>
       <template v-if="tab === 'board'">
         <button class="btn primary" :disabled="!canExport" @click="exportPng">导出站位图 PNG</button>
         <button
@@ -109,6 +131,7 @@ import { recordCanvas, type RecordHandle } from '../render/exportVideo';
 import { colorClose, download, fileName, fmtTime, buildJson, pickVideoMime } from '../core/utils';
 import { validateLineup } from '../core/validate';
 import {
+  activeMatch,
   activeUi,
   cur,
   goStep,
@@ -122,8 +145,18 @@ import {
 import type { CardOptions } from '../render/card';
 import StepShowcase from './StepShowcase.vue';
 import StepLineupShot from './StepLineupShot.vue';
+import ScoreChangeShot from './ScoreChangeShot.vue';
+import PlayerWatchShot from './PlayerWatchShot.vue';
 
-const tab = ref<'board' | 'show' | 'group'>('board');
+const tab = ref<'board' | 'show' | 'group' | 'watch' | 'score'>('board');
+const TAB_TITLES: Record<string, string> = {
+  board: '播出站位图',
+  show: '队员介绍',
+  group: '队员介绍2',
+  watch: 'PLAYER TO WATCH',
+  score: '比分变化',
+};
+const tabTitle = computed(() => TAB_TITLES[tab.value]);
 const canvasEl = ref<HTMLCanvasElement | null>(null);
 const animating = ref(false);
 const recording = ref(false);
@@ -133,6 +166,7 @@ let recHandle: RecordHandle | null = null;
 let paintToken = 0;
 
 const t = computed(() => cur());
+const scoreCount = computed(() => activeMatch()?.scoreLog.length || 0);
 const ui = computed(() => activeUi());
 const v = computed(() => validateLineup(t.value));
 const missing = computed(() => (t.value.slots || []).filter((s) => s.pid == null).length);
@@ -195,7 +229,7 @@ async function playAnim(): Promise<void> {
   if (!cv) return;
   const team = cur();
   if (!(team.slots || []).some((s) => s.pid != null)) {
-    notify('还没有落位球员，请先完成站位编排');
+    notify('还没有落位球员，请先在第 2 步补齐名单');
     return;
   }
   cancelAnim();
@@ -231,7 +265,7 @@ async function exportAnimVideo(): Promise<void> {
   const team = cur();
   const cv = canvasEl.value;
   if (!(team.slots || []).some((s) => s.pid != null)) {
-    notify('还没有落位球员，请先完成站位编排');
+    notify('还没有落位球员，请先在第 2 步补齐名单');
     return;
   }
   const m = mime.value;

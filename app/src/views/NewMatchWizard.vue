@@ -67,7 +67,7 @@
           </select>
         </div>
       </div>
-      <div class="note">进入站位编排后仍可随时切换阵型；切换时会尽量保留已落位球员，多出的球员自动转入替补。</div>
+      <div class="note">名单录入完成后系统会自动按位置落位，播出页的站位图随即可用；如需换阵型，请在这里重新创建比赛。</div>
     </div>
 
     <div v-else class="wbody">

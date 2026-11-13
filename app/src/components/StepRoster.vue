@@ -108,15 +108,15 @@
             把球员拖到这里作为替补
           </div>
         </div>
-        <div class="rcol-foot">替补按顺序显示在展示页；可在首发与替补之间互相拖动。</div>
+        <div class="rcol-foot">替补按顺序显示在展示页；进入比分板或播出步骤时会自动落位。</div>
       </div>
     </div>
 
     <div class="btnrow">
       <button class="btn ghost" @click="goStep(1)">上一步</button>
       <span class="spacer"></span>
-      <button class="btn primary" @click="goStep(3)" :disabled="!summary.filled">
-        下一步：站位编排
+      <button class="btn primary" @click="goStep(3)" :disabled="summary.total < summary.count">
+        下一步：比分板
       </button>
     </div>
   </section>

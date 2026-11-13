@@ -70,7 +70,11 @@ CREATE TABLE IF NOT EXISTS matches (
   away_formation TEXT    NOT NULL DEFAULT '2-2-1',
   status         TEXT    NOT NULL DEFAULT 'draft',
   exported_at    REAL,
-  created_at     TEXT    NOT NULL DEFAULT ''
+  created_at     TEXT    NOT NULL DEFAULT '',
+  score_title    TEXT    NOT NULL DEFAULT '',
+  score_home     INTEGER NOT NULL DEFAULT 0,
+  score_away     INTEGER NOT NULL DEFAULT 0,
+  score_log      TEXT    NOT NULL DEFAULT '[]'
 );
 
 CREATE TABLE IF NOT EXISTS match_slots (
@@ -101,6 +105,11 @@ CREATE TABLE IF NOT EXISTS match_state (
   view       TEXT    NOT NULL DEFAULT 'h',
   show_photo INTEGER NOT NULL DEFAULT 1,
   show_name  INTEGER NOT NULL DEFAULT 1,
+  ptw_pid    INTEGER NOT NULL DEFAULT 0,
+  ptw_text   TEXT    NOT NULL DEFAULT '',
+  ptw_hide   INTEGER NOT NULL DEFAULT 0,
+  score_name_mode TEXT NOT NULL DEFAULT 'code',
+  score_name TEXT    NOT NULL DEFAULT '',
   PRIMARY KEY (match_id, side),
   FOREIGN KEY (match_id) REFERENCES matches(id) ON DELETE CASCADE
 );
@@ -159,6 +168,28 @@ def init_db() -> None:
                 conn.execute(f"ALTER TABLE players ADD COLUMN {name} TEXT")
         if "coach" not in _columns(conn, "teams"):
             conn.execute("ALTER TABLE teams ADD COLUMN coach TEXT NOT NULL DEFAULT ''")
+        st_cols = _columns(conn, "match_state")
+        if "ptw_pid" not in st_cols:
+            conn.execute("ALTER TABLE match_state ADD COLUMN ptw_pid INTEGER NOT NULL DEFAULT 0")
+        if "ptw_text" not in st_cols:
+            conn.execute("ALTER TABLE match_state ADD COLUMN ptw_text TEXT NOT NULL DEFAULT ''")
+        if "ptw_hide" not in st_cols:
+            conn.execute("ALTER TABLE match_state ADD COLUMN ptw_hide INTEGER NOT NULL DEFAULT 0")
+        if "score_name_mode" not in st_cols:
+            conn.execute(
+                "ALTER TABLE match_state ADD COLUMN score_name_mode TEXT NOT NULL DEFAULT 'code'"
+            )
+        if "score_name" not in st_cols:
+            conn.execute("ALTER TABLE match_state ADD COLUMN score_name TEXT NOT NULL DEFAULT ''")
+        m_cols = _columns(conn, "matches")
+        if "score_title" not in m_cols:
+            conn.execute("ALTER TABLE matches ADD COLUMN score_title TEXT NOT NULL DEFAULT ''")
+        if "score_home" not in m_cols:
+            conn.execute("ALTER TABLE matches ADD COLUMN score_home INTEGER NOT NULL DEFAULT 0")
+        if "score_away" not in m_cols:
+            conn.execute("ALTER TABLE matches ADD COLUMN score_away INTEGER NOT NULL DEFAULT 0")
+        if "score_log" not in m_cols:
+            conn.execute("ALTER TABLE matches ADD COLUMN score_log TEXT NOT NULL DEFAULT '[]'")
         conn.execute(
             "INSERT OR IGNORE INTO app_state (id, view, active_match_id) VALUES (1, 'matches', NULL)"
         )
@@ -429,6 +460,23 @@ def _dump_json(v: Any) -> str | None:
     return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
 
 
+def _load_json_list(raw: Any) -> list[Any]:
+    """读取 TEXT 列里的 JSON 数组（比分记录）"""
+    if not raw:
+        return []
+    try:
+        v = json.loads(raw)
+    except (TypeError, ValueError):
+        return []
+    return v if isinstance(v, list) else []
+
+
+def _dump_json_list(v: Any) -> str:
+    if not isinstance(v, list):
+        return "[]"
+    return json.dumps(v, ensure_ascii=False, separators=(",", ":"))
+
+
 def load_library() -> dict[str, Any] | None:
     with db() as conn:
         team_rows = list(conn.execute("SELECT * FROM teams ORDER BY id"))
@@ -487,6 +535,19 @@ def load_library() -> dict[str, Any] | None:
                 "status": m["status"],
                 "exportedAt": m["exported_at"],
                 "createdAt": m["created_at"],
+                "scoreTitle": m["score_title"] or "",
+                "scoreHome": int(m["score_home"] or 0),
+                "scoreAway": int(m["score_away"] or 0),
+                "scoreLog": [
+                    {
+                        "id": _int(e.get("id"), 0),
+                        "home": _int(e.get("home"), 0),
+                        "away": _int(e.get("away"), 0),
+                        "at": _num(e.get("at"), 0),
+                    }
+                    for e in _load_json_list(m["score_log"])
+                    if isinstance(e, dict)
+                ],
             }
             for side in SIDES:
                 slots = [
@@ -514,6 +575,15 @@ def load_library() -> dict[str, Any] | None:
                         "view": st["view"] if st else "h",
                         "showPhoto": bool(st["show_photo"]) if st else True,
                         "showName": bool(st["show_name"]) if st else True,
+                        "ptwPid": int(st["ptw_pid"]) if st else 0,
+                        "ptwText": (st["ptw_text"] or "") if st else "",
+                        "ptwHide": bool(st["ptw_hide"]) if st else False,
+                        "scoreNameMode": (
+                            st["score_name_mode"]
+                            if st and st["score_name_mode"] in ("code", "full", "custom")
+                            else "code"
+                        ),
+                        "scoreName": (st["score_name"] or "") if st else "",
                     },
                 }
             matches.append(match)
@@ -652,15 +722,19 @@ def save_library(data: dict[str, Any]) -> None:
                 continue
             keep_matches.add(mid)
             count = max(1, _int(m.get("count"), 6))
+            score_log = m.get("scoreLog") if isinstance(m.get("scoreLog"), list) else []
             conn.execute(
                 "INSERT INTO matches (id, name, competition, date, home_team_id, away_team_id, player_count,"
-                " home_formation, away_formation, status, exported_at, created_at)"
-                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?)"
+                " home_formation, away_formation, status, exported_at, created_at,"
+                " score_title, score_home, score_away, score_log)"
+                " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
                 " ON CONFLICT(id) DO UPDATE SET name=excluded.name, competition=excluded.competition,"
                 " date=excluded.date, home_team_id=excluded.home_team_id, away_team_id=excluded.away_team_id,"
                 " player_count=excluded.player_count, home_formation=excluded.home_formation,"
                 " away_formation=excluded.away_formation, status=excluded.status,"
-                " exported_at=excluded.exported_at",
+                " exported_at=excluded.exported_at, score_title=excluded.score_title,"
+                " score_home=excluded.score_home, score_away=excluded.score_away,"
+                " score_log=excluded.score_log",
                 (
                     mid,
                     _text(m.get("name")),
@@ -674,6 +748,21 @@ def save_library(data: dict[str, Any]) -> None:
                     _text(m.get("status"), "draft"),
                     m.get("exportedAt") if isinstance(m.get("exportedAt"), (int, float)) else None,
                     _text(m.get("createdAt"), now),
+                    _text(m.get("scoreTitle")),
+                    max(0, min(99, _int(m.get("scoreHome"), 0))),
+                    max(0, min(99, _int(m.get("scoreAway"), 0))),
+                    _dump_json_list(
+                        [
+                            {
+                                "id": _int(e.get("id"), 0),
+                                "home": max(0, min(99, _int(e.get("home"), 0))),
+                                "away": max(0, min(99, _int(e.get("away"), 0))),
+                                "at": _num(e.get("at"), 0),
+                            }
+                            for e in score_log
+                            if isinstance(e, dict)
+                        ]
+                    ),
                 ),
             )
             for side in SIDES:
@@ -708,17 +797,27 @@ def save_library(data: dict[str, Any]) -> None:
                             )
                 ui = side_data.get("ui") if isinstance(side_data.get("ui"), dict) else {}
                 conn.execute(
-                    "INSERT INTO match_state (match_id, side, step, view, show_photo, show_name)"
-                    " VALUES (?,?,?,?,?,?) ON CONFLICT(match_id, side) DO UPDATE SET"
+                    "INSERT INTO match_state (match_id, side, step, view, show_photo, show_name,"
+                    " ptw_pid, ptw_text, ptw_hide, score_name_mode, score_name)"
+                    " VALUES (?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(match_id, side) DO UPDATE SET"
                     " step=excluded.step, view=excluded.view, show_photo=excluded.show_photo,"
-                    " show_name=excluded.show_name",
+                    " show_name=excluded.show_name, ptw_pid=excluded.ptw_pid,"
+                    " ptw_text=excluded.ptw_text, ptw_hide=excluded.ptw_hide,"
+                    " score_name_mode=excluded.score_name_mode, score_name=excluded.score_name",
                     (
                         mid,
                         side,
-                        min(4, max(1, _int(ui.get("step"), 1))),
+                        min(6, max(1, _int(ui.get("step"), 1))),
                         "v" if ui.get("view") == "v" else "h",
                         1 if ui.get("showPhoto", True) else 0,
                         1 if ui.get("showName", True) else 0,
+                        _int(ui.get("ptwPid"), 0),
+                        _text(ui.get("ptwText")),
+                        1 if ui.get("ptwHide") else 0,
+                        _text(ui.get("scoreNameMode"), "code")
+                        if ui.get("scoreNameMode") in ("code", "full", "custom")
+                        else "code",
+                        _text(ui.get("scoreName"))[:20],
                     ),
                 )
         for row in conn.execute("SELECT id FROM matches").fetchall():
